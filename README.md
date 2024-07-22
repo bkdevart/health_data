@@ -5,9 +5,9 @@ Data summarization scripts and dashboards focused around smart watch data.
 Data was collected on Apple watch models over various years. Initial analysis focused on bicycle exercise data.
 
 ## Analysis
-<iframe src="https://bkdevart.github.io/health_data/"></iframe>
+<!--<iframe src="https://bkdevart.github.io/health_data/"></iframe>-->
 
-https://public.tableau.com/app/profile/brandon.knox/viz/daily_cycling/DailyMiles
+[Dashboard link](https://bkdevart.github.io/health_data/)
 
 ## Setup notes
 
