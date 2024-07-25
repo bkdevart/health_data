@@ -7,6 +7,10 @@ Data was collected on Apple watch models over various years. Initial analysis fo
 ## Analysis
 <!--<iframe src="https://bkdevart.github.io/health_data/"></iframe>-->
 
+Preliminary findings
+
+- Regular cycling path is apparent in histogram of cycling distances, with 5.6 miles accounting for 46% of the exercises
+
 [Dashboard link](https://bkdevart.github.io/health_data/)
 
 ## Setup notes
