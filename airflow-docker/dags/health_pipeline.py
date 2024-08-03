@@ -10,28 +10,25 @@ from airflow.operators.bash import BashOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.sensors.filesystem import FileSensor
 
-from config import postgres_pwd
-
 default_args = {
    'owner': 'admin'
 }
 
-FILE_PATH = '/Users/Brandon/airflow/tmp/daily_cycling.csv'
+PYTHON_FILE_PATH = 'tmp/daily_cycling.csv'
+BASH_FILE_PATH = '/opt/airflow/tmp/daily_cycling.csv'
 FILE_COLS = ['start_date', 'miles', 'seconds', 'avg_mph']
-
-OUTPUT_FILE = '/Users/Brandon/airflow/output/{}.csv'
 
 def insert_cycling_data():
     conn = psycopg2.connect(
-        host="localhost",
+        host="postgres_health",
         database="health_db",
-        user="postgres",
-        password=postgres_pwd
+        user="health_db",
+        password="health_db"
     )
 
     cur = conn.cursor()
 
-    for file in glob.glob(FILE_PATH):
+    for file in glob.glob(PYTHON_FILE_PATH):
         df = pd.read_csv(file, usecols=FILE_COLS)
 
         records = df.to_dict('records')
@@ -61,7 +58,7 @@ with DAG(
     start_date = days_ago(1),
     schedule_interval = '@once',
     tags = ['pipeline', 'sensor', 'file sensor'],
-    template_searchpath = '/Users/Brandon/airflow/sql_statements'
+    template_searchpath = '/opt/airflow/sql'
 ) as dag:
     create_table_cycling = PostgresOperator(
         task_id = 'create_table_cycling',
@@ -71,9 +68,9 @@ with DAG(
 
     checking_for_file = FileSensor(
         task_id = 'checking_for_file',
-        filepath = FILE_PATH,
+        filepath = PYTHON_FILE_PATH,
         poke_interval = 10,
-        timeout = 60 * 10
+        timeout = 60 * 10 # , fs_conn_id=?
     )
     
     insert_cycling_data = PythonOperator(
@@ -83,7 +80,8 @@ with DAG(
 
     delete_file = BashOperator(
         task_id = 'delete_file',
-        bash_command = 'rm {0}'.format(FILE_PATH)
+        bash_command = 'rm {0}'.format(BASH_FILE_PATH)
     )
     
-    create_table_cycling >> checking_for_file >> insert_cycling_data >> delete_file
+    # create_table_cycling >> checking_for_file >> insert_cycling_data 
+    create_table_cycling >> checking_for_file >> insert_cycling_data >> delete_file 
