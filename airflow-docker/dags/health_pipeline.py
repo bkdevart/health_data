@@ -16,8 +16,10 @@ default_args = {
 
 CYCLING_FILENAME = 'daily_cycling.csv'
 HEARTRATE_FILENAME = 'daily_heart_rate.csv'
+WALKING_RUNNING_FILENAME = 'daily_walking_running.csv'
 CYCLING_COLS = ['start_date', 'miles', 'seconds', 'avg_mph']
 HEARTRATE_COLS = ['start_date', 'beats_per_min']
+WALKING_RUNNING_COLS = ['start_date', 'miles']
 
 def insert_cycling_data():
     conn = psycopg2.connect(
@@ -81,6 +83,36 @@ def insert_heartrate_data():
     cur.close()
     conn.close()
 
+def insert_walking_running_data():
+    conn = psycopg2.connect(
+        host="postgres_health",
+        database="health_db",
+        user="health_db",
+        password="health_db"
+    )
+
+    cur = conn.cursor()
+
+    for file in glob.glob('tmp/' + WALKING_RUNNING_FILENAME):
+        df = pd.read_csv(file, usecols=WALKING_RUNNING_COLS)
+
+        records = df.to_dict('records')
+        
+        for record in records:
+            query = f"""INSERT INTO walking_running 
+                        (start_date, miles) 
+                        VALUES (
+                            '{record['start_date']}', 
+                            '{record['miles']}')
+                    """
+
+            cur.execute(query)
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
 
 with DAG(
     dag_id = 'health_db_pipeline',
@@ -103,6 +135,12 @@ with DAG(
         sql = 'create_table_heartrate.sql'
     )
 
+    create_table_walking_running = PostgresOperator(
+        task_id = 'create_table_walking_running',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'create_table_walking_running.sql'
+    )
+
     checking_for_cycling_file = FileSensor(
         task_id = 'checking_for_cycling_file',
         filepath = 'tmp/' + CYCLING_FILENAME,
@@ -113,6 +151,13 @@ with DAG(
     checking_for_heartrate_file = FileSensor(
         task_id = 'checking_for_heartrate_file',
         filepath = 'tmp/' + HEARTRATE_FILENAME,
+        poke_interval = 10,
+        timeout = 60 * 10 # , fs_conn_id=?
+    )
+
+    checking_for_walking_running_file = FileSensor(
+        task_id = 'checking_for_walking_running_file',
+        filepath = 'tmp/' + WALKING_RUNNING_FILENAME,
         poke_interval = 10,
         timeout = 60 * 10 # , fs_conn_id=?
     )
@@ -127,6 +172,11 @@ with DAG(
         python_callable = insert_heartrate_data
     )
 
+    insert_walking_running_data = PythonOperator(
+        task_id = 'insert_walking_running_data',
+        python_callable = insert_walking_running_data
+    )
+
     delete_cycling_file = BashOperator(
         task_id = 'delete_cycling_file',
         bash_command = 'rm /opt/airflow/tmp/{0}'.format(CYCLING_FILENAME)
@@ -136,7 +186,14 @@ with DAG(
         task_id = 'delete_heartrate_file',
         bash_command = 'rm /opt/airflow/tmp/{0}'.format(HEARTRATE_FILENAME)
     )
+
+    delete_walking_running_file = BashOperator(
+        task_id = 'delete_walking_running_file',
+        bash_command = 'rm /opt/airflow/tmp/{0}'.format(WALKING_RUNNING_FILENAME)
+    )
     
     # create_table_cycling >> checking_for_file >> insert_cycling_data 
-    create_table_cycling >> create_table_heartrate  >> checking_for_cycling_file >> checking_for_heartrate_file >> \
-        insert_cycling_data >> insert_heartrate_data >> delete_cycling_file >> delete_heartrate_file
+    create_table_cycling >> create_table_heartrate  >> create_table_walking_running >> \
+        checking_for_cycling_file >> checking_for_heartrate_file >> checking_for_walking_running_file >> \
+        insert_cycling_data >> insert_heartrate_data >> insert_walking_running_data >> \
+        delete_cycling_file >> delete_heartrate_file >> delete_walking_running_file
