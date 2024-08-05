@@ -9,6 +9,7 @@ from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.sensors.filesystem import FileSensor
+from airflow.models.connection import Connection
 
 default_args = {
    'owner': 'admin'
@@ -113,6 +114,15 @@ def insert_walking_running_data():
     cur.close()
     conn.close()
 
+def export_combined_data():
+    conn = psycopg2.connect(
+        host="postgres_health",
+        database="health_db",
+        user="health_db",
+        password="health_db"
+    )
+    df =  pd.read_sql('SELECT * FROM combined_data', conn)
+    df.to_csv('output/combined_data.csv', index=False)
 
 with DAG(
     dag_id = 'health_db_pipeline',
@@ -122,6 +132,7 @@ with DAG(
     schedule_interval = '@once',
     tags = ['pipeline', 'sensor', 'file sensor'],
     template_searchpath = '/opt/airflow/sql'
+
 ) as dag:
     create_table_cycling = PostgresOperator(
         task_id = 'create_table_cycling',
@@ -190,6 +201,15 @@ with DAG(
         sql = 'combine_tables.sql'
     )
 
+    # @task()
+    # def export_combined_data():
+    #     df =  pd.read_sql('SELECT *', Connnection.get("postgres_health").get_uri())
+    #     df.to_csv('output/combined_data.csv', index=False)
+    export_combined_data = PythonOperator(
+        task_id = 'export_combined_data',
+        python_callable = export_combined_data
+    )
+
     delete_cycling_file = BashOperator(
         task_id = 'delete_cycling_file',
         bash_command = 'rm /opt/airflow/tmp/{0}'.format(CYCLING_FILENAME)
@@ -209,5 +229,5 @@ with DAG(
     create_table_cycling >> create_table_heartrate >> create_table_walking_running >> create_table_combined_data >> \
         [checking_for_cycling_file, checking_for_heartrate_file, checking_for_walking_running_file] >> \
         insert_cycling_data >> insert_heartrate_data >> insert_walking_running_data >> \
-        create_table_combined >> \
+        create_table_combined >> export_combined_data >> \
         delete_cycling_file >> delete_heartrate_file >> delete_walking_running_file
