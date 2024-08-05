@@ -141,6 +141,12 @@ with DAG(
         sql = 'create_table_walking_running.sql'
     )
 
+    create_table_combined_data = PostgresOperator(
+        task_id = 'create_table_combined_data',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'create_table_combined_data.sql'
+    )
+
     checking_for_cycling_file = FileSensor(
         task_id = 'checking_for_cycling_file',
         filepath = 'tmp/' + CYCLING_FILENAME,
@@ -177,6 +183,13 @@ with DAG(
         python_callable = insert_walking_running_data
     )
 
+    # TODO: combine tables using SQL and export as a csv file
+    create_table_combined = PostgresOperator(
+        task_id = 'combine_tables',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'combine_tables.sql'
+    )
+
     delete_cycling_file = BashOperator(
         task_id = 'delete_cycling_file',
         bash_command = 'rm /opt/airflow/tmp/{0}'.format(CYCLING_FILENAME)
@@ -193,7 +206,8 @@ with DAG(
     )
     
     # create_table_cycling >> checking_for_file >> insert_cycling_data 
-    create_table_cycling >> create_table_heartrate  >> create_table_walking_running >> \
-        checking_for_cycling_file >> checking_for_heartrate_file >> checking_for_walking_running_file >> \
+    create_table_cycling >> create_table_heartrate >> create_table_walking_running >> create_table_combined_data >> \
+        [checking_for_cycling_file, checking_for_heartrate_file, checking_for_walking_running_file] >> \
         insert_cycling_data >> insert_heartrate_data >> insert_walking_running_data >> \
+        create_table_combined >> \
         delete_cycling_file >> delete_heartrate_file >> delete_walking_running_file
