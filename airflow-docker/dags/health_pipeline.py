@@ -133,6 +133,159 @@ def iterparse_xml():
     df.to_csv('tmp/activity_summary.csv', index=False)
     exercise_time.to_csv('tmp/exercise_time.csv', index=False)
 
+def insert_activity_summary_data():
+    conn = psycopg2.connect(
+        host="postgres_health",
+        database="health_db",
+        user="health_db",
+        password="health_db"
+    )
+
+    cur = conn.cursor()
+
+    # for file in glob.glob('tmp/activity_summary.csv'):
+    df = pd.read_csv('tmp/activity_summary.csv')
+
+    records = df.to_dict('records')
+    
+    for record in records:
+        query = f"""INSERT INTO activity_summary 
+                    (date, energy_burned, energy_burned_goal, energy_burned_unit,
+                        exercise_time, exercise_time_goal, stand_hours, stand_hours_goal,
+                        created_at, updated_at) 
+                    VALUES (
+                        '{record['date']}',
+                        '{record['energy_burned']}', 
+                        '{record['energy_burned_goal']}',
+                        '{record['energy_burned_unit']}', 
+                        '{record['exercise_time']}',
+                        '{record['exercise_time_goal']}', 
+                        '{record['stand_hours']}',
+                        '{record['stand_hours_goal']}', 
+                        '{record['created_at']}',
+                        '{record['updated_at']}')
+                """
+
+        cur.execute(query)
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+def insert_exercise_time_data():
+    conn = psycopg2.connect(
+        host="postgres_health",
+        database="health_db",
+        user="health_db",
+        password="health_db"
+    )
+
+    cur = conn.cursor()
+
+    df = pd.read_csv('tmp/exercise_time.csv')
+
+    records = df.to_dict('records')
+    
+    for record in records:
+        query = f"""INSERT INTO exercise_time 
+                    (date, exercise_time_type, exercise_time_duration, 
+                        exercise_time_durationUnit, created_at, updated_at) 
+                    VALUES (
+                        '{record['date']}',
+                        '{record['exercise_time_type']}', 
+                        '{record['exercise_time_duration']}',
+                        '{record['exercise_time_durationUnit']}', 
+                        '{record['created_at']}',
+                        '{record['updated_at']}')
+                """
+
+        cur.execute(query)
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+    
+def parse_xml_file():
+    # TODO: need to use iterparse method to execute this
+    XML_DATA = "tmp/export.xml"
+    # Parse XML file exported from Apple Health app
+    tree = ET.parse(XML_DATA)
+    root = tree.getroot()
+
+    # Store "Record" type data into Pandas.DataFrame
+    records = [i.attrib for i in root.iter("Record")]
+    records_df = pd.DataFrame(records)
+
+    # Convert datetime format
+    date_col = ['creationDate', 'startDate', 'endDate']
+    records_df[date_col] = records_df[date_col].apply(pd.to_datetime)
+
+    cycling_df = records_df.query("type == 'HKQuantityTypeIdentifierDistanceCycling'").copy()
+    cycling_df = preprocess_exercise(cycling_df, 'cycling', exercise=True)
+
+    walking_running_df = records_df.query("type == 'HKQuantityTypeIdentifierDistanceWalkingRunning'").copy()
+    walking_running_df = preprocess_exercise(walking_running_df, 'walking_running')
+
+    heart_rate_df = records_df.query("type == 'HKQuantityTypeIdentifierHeartRate'").copy()
+    heart_rate_df = preprocess_exercise(heart_rate_df, 'heart_rate', metric='beats_per_min')
+
+def preprocess_exercise(df, filename, metric='miles', exercise=False):
+    # clean up exercise data - may want to restore device later
+    df.drop(['type', 'sourceName', 'unit', 'device', 'sourceVersion'], 
+                    axis=1, 
+                    inplace=True)
+    df.rename(columns={'value': metric, 
+                       'startDate': 'start_date',
+                       'endDate': 'end_date',
+                       'creationDate': 'creation_date'}, inplace=True)
+    df[metric] = pd.to_numeric(df[metric])
+    df['creation_date'] = df['creation_date'].dt.tz_convert('US/Arizona')
+    df['start_date'] = df['start_date'].dt.tz_convert('US/Arizona')
+    df['end_date'] = df['end_date'].dt.tz_convert('US/Arizona')
+    df.sort_values(['creation_date'], inplace=True)
+    df.reset_index(drop=True, inplace=True)
+    
+    if exercise and metric=='miles':
+        # calculate times, speed
+        df['seconds'] = (df['end_date'] - df['start_date']).dt.total_seconds()
+        df['avg_mph'] = df[metric] / (df['seconds'] / 3600)
+
+    # export granular, focused data for analysis
+    df.to_csv(f'tmp/{filename}.csv', index=False)
+
+    if exercise and metric=='miles':
+        # calculate aggregated speed - assumes miles for metric and exercise=True
+        # export daily summaries for analysis
+        df_date = df.groupby(df['start_date'].dt.date)[[metric, 'seconds']].sum().reset_index()
+        df_date['avg_mph'] = df_date[metric] / (df_date['seconds'] / 3600)
+    else:
+        df_date = df.groupby(df['start_date'].dt.date)[[metric]].sum().reset_index()
+
+    df_date.to_csv(f'cleaned_data/daily_{filename}.csv', index=False)
+    return df
+
+def export_combined_activity_exercise_data():
+    conn = psycopg2.connect(
+    host="postgres_health",
+    database="health_db",
+    user="health_db",
+    password="health_db"
+)
+    df =  pd.read_sql('SELECT * FROM combined_activity_exercise', conn)
+    df.to_csv('output/activity_exercise_data.csv', index=False)
+
+# def export_combined_data():
+#     conn = psycopg2.connect(
+#         host="postgres_health",
+#         database="health_db",
+#         user="health_db",
+#         password="health_db"
+#     )
+#     df =  pd.read_sql('SELECT * FROM combined_data', conn)
+#     df.to_csv('output/combined_data.csv', index=False)
+
 # def insert_cycling_data():
 #     conn = psycopg2.connect(
 #         host="postgres_health",
@@ -225,114 +378,6 @@ def iterparse_xml():
 #     cur.close()
 #     conn.close()
 
-def insert_activity_summary_data():
-    conn = psycopg2.connect(
-        host="postgres_health",
-        database="health_db",
-        user="health_db",
-        password="health_db"
-    )
-
-    cur = conn.cursor()
-
-    # for file in glob.glob('tmp/activity_summary.csv'):
-    df = pd.read_csv('tmp/activity_summary.csv')
-
-    records = df.to_dict('records')
-    
-    for record in records:
-        query = f"""INSERT INTO activity_summary 
-                    (date, energy_burned, energy_burned_goal, energy_burned_unit,
-                        exercise_time, exercise_time_goal, stand_hours, stand_hours_goal,
-                        created_at, updated_at) 
-                    VALUES (
-                        '{record['date']}',
-                        '{record['energy_burned']}', 
-                        '{record['energy_burned_goal']}',
-                        '{record['energy_burned_unit']}', 
-                        '{record['exercise_time']}',
-                        '{record['exercise_time_goal']}', 
-                        '{record['stand_hours']}',
-                        '{record['stand_hours_goal']}', 
-                        '{record['created_at']}',
-                        '{record['updated_at']}')
-                """
-
-        cur.execute(query)
-
-    conn.commit()
-
-    cur.close()
-    conn.close()
-
-# def export_combined_data():
-#     conn = psycopg2.connect(
-#         host="postgres_health",
-#         database="health_db",
-#         user="health_db",
-#         password="health_db"
-#     )
-#     df =  pd.read_sql('SELECT * FROM combined_data', conn)
-#     df.to_csv('output/combined_data.csv', index=False)
-    
-def parse_xml_file():
-    XML_DATA = "tmp/export.xml"
-    # Parse XML file exported from Apple Health app
-    tree = ET.parse(XML_DATA)
-    root = tree.getroot()
-
-    # Store "Record" type data into Pandas.DataFrame
-    records = [i.attrib for i in root.iter("Record")]
-    records_df = pd.DataFrame(records)
-
-    # Convert datetime format
-    date_col = ['creationDate', 'startDate', 'endDate']
-    records_df[date_col] = records_df[date_col].apply(pd.to_datetime)
-
-    cycling_df = records_df.query("type == 'HKQuantityTypeIdentifierDistanceCycling'").copy()
-    cycling_df = preprocess_exercise(cycling_df, 'cycling', exercise=True)
-
-    walking_running_df = records_df.query("type == 'HKQuantityTypeIdentifierDistanceWalkingRunning'").copy()
-    walking_running_df = preprocess_exercise(walking_running_df, 'walking_running')
-
-    heart_rate_df = records_df.query("type == 'HKQuantityTypeIdentifierHeartRate'").copy()
-    heart_rate_df = preprocess_exercise(heart_rate_df, 'heart_rate', metric='beats_per_min')
-
-def preprocess_exercise(df, filename, metric='miles', exercise=False):
-    # clean up exercise data - may want to restore device later
-    df.drop(['type', 'sourceName', 'unit', 'device', 'sourceVersion'], 
-                    axis=1, 
-                    inplace=True)
-    df.rename(columns={'value': metric, 
-                       'startDate': 'start_date',
-                       'endDate': 'end_date',
-                       'creationDate': 'creation_date'}, inplace=True)
-    df[metric] = pd.to_numeric(df[metric])
-    df['creation_date'] = df['creation_date'].dt.tz_convert('US/Arizona')
-    df['start_date'] = df['start_date'].dt.tz_convert('US/Arizona')
-    df['end_date'] = df['end_date'].dt.tz_convert('US/Arizona')
-    df.sort_values(['creation_date'], inplace=True)
-    df.reset_index(drop=True, inplace=True)
-    
-    if exercise and metric=='miles':
-        # calculate times, speed
-        df['seconds'] = (df['end_date'] - df['start_date']).dt.total_seconds()
-        df['avg_mph'] = df[metric] / (df['seconds'] / 3600)
-
-    # export granular, focused data for analysis
-    df.to_csv(f'tmp/{filename}.csv', index=False)
-
-    if exercise and metric=='miles':
-        # calculate aggregated speed - assumes miles for metric and exercise=True
-        # export daily summaries for analysis
-        df_date = df.groupby(df['start_date'].dt.date)[[metric, 'seconds']].sum().reset_index()
-        df_date['avg_mph'] = df_date[metric] / (df_date['seconds'] / 3600)
-    else:
-        df_date = df.groupby(df['start_date'].dt.date)[[metric]].sum().reset_index()
-
-    df_date.to_csv(f'cleaned_data/daily_{filename}.csv', index=False)
-    return df
-
 with DAG(
     dag_id = 'health_db_pipeline',
     description = 'Running a pipeline using a file sensor',
@@ -348,6 +393,78 @@ with DAG(
         python_callable = iterparse_xml
     )
 
+    create_table_activity_summary = PostgresOperator(
+        task_id = 'create_table_activity_summary',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'create_table_activity_summary.sql'
+    )
+
+    create_table_exercise_time = PostgresOperator(
+        task_id = 'create_table_exercise_time',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'create_table_exercise_time.sql'
+    )
+
+    create_table_combined_activity_exercise = PostgresOperator(
+        task_id = 'create_table_combined_activity_exercise',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'create_table_combined_activity_exercise_data.sql'
+    )
+
+    checking_for_xml_file = FileSensor(
+        task_id = 'checking_for_xml_file',
+        filepath = 'tmp/export.xml',
+        poke_interval = 10,
+        timeout = 60 * 10
+    )
+
+    checking_for_activity_summary_file = FileSensor(
+        task_id = 'checking_for_activity_summary_file',
+        filepath = 'tmp/activity_summary.csv',
+        poke_interval = 10,
+        timeout = 60 * 10
+    )
+
+    checking_for_excercise_time_file = FileSensor(
+        task_id = 'checking_for_excercise_time_file',
+        filepath = 'tmp/exercise_time.csv',
+        poke_interval = 10,
+        timeout = 60 * 10
+    )
+
+    insert_activity_summary_data_task = PythonOperator(
+        task_id = 'insert_activity_summary_data_task',
+        python_callable = insert_activity_summary_data
+    )
+
+    insert_excercise_time_data_task = PythonOperator(
+        task_id = 'insert_excercise_time_data_task',
+        python_callable = insert_exercise_time_data
+    )
+
+    combine_activity_exercise = PostgresOperator(
+        task_id = 'combine_activity_exercise',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'combine_activity_exercise.sql'
+    )
+
+    export_combined_activity_exercise_data = PythonOperator(
+        task_id = 'export_combined_activity_exercise_data',
+        python_callable = export_combined_activity_exercise_data
+    )
+
+    delete_temp_csv_files = BashOperator(
+        task_id = 'delete_temp_csv_files',
+        bash_command = 'rm /opt/airflow/tmp/*.csv'
+    )
+
+    create_table_activity_summary >> create_table_exercise_time >> create_table_combined_activity_exercise >>\
+        checking_for_xml_file >> parse_xml_file_task >> \
+        [checking_for_activity_summary_file, checking_for_excercise_time_file] >> \
+        insert_activity_summary_data_task >> insert_excercise_time_data_task >> \
+            combine_activity_exercise >> export_combined_activity_exercise_data >> \
+            delete_temp_csv_files
+    
     # create_table_cycling = PostgresOperator(
     #     task_id = 'create_table_cycling',
     #     postgres_conn_id = 'postgres_health_db',
@@ -372,25 +489,6 @@ with DAG(
     #     sql = 'create_table_combined_data.sql'
     # )
 
-    create_table_activity_summary = PostgresOperator(
-        task_id = 'create_table_activity_summary',
-        postgres_conn_id = 'postgres_health_db',
-        sql = 'create_table_activity_summary.sql'
-    )
-
-    create_table_exercise_time = PostgresOperator(
-        task_id = 'create_table_exercise_time',
-        postgres_conn_id = 'postgres_health_db',
-        sql = 'create_table_exercise_time.sql'
-    )
-
-    checking_for_xml_file = FileSensor(
-        task_id = 'checking_for_xml_file',
-        filepath = 'tmp/export.xml',
-        poke_interval = 10,
-        timeout = 60 * 10
-    )
-
     # checking_for_cycling_file = FileSensor(
     #     task_id = 'checking_for_cycling_file',
     #     filepath = 'tmp/' + CYCLING_FILENAME,
@@ -412,25 +510,6 @@ with DAG(
     #     timeout = 60 * 10
     # )
 
-    checking_for_activity_summary_file = FileSensor(
-        task_id = 'checking_for_activity_summary_file',
-        filepath = 'tmp/activity_summary.csv',
-        poke_interval = 10,
-        timeout = 60 * 10
-    )
-
-    checking_for_excercise_time_file = FileSensor(
-        task_id = 'checking_for_excercise_time_file',
-        filepath = 'tmp/exercise_time.csv',
-        poke_interval = 10,
-        timeout = 60 * 10
-    )
-
-    insert_activity_summary_data_task = PythonOperator(
-        task_id = 'insert_activity_summary_data_task',
-        python_callable = insert_activity_summary_data
-    )
-    
     # insert_cycling_data = PythonOperator(
     #     task_id = 'insert_cycling_data',
     #     python_callable = insert_cycling_data
@@ -481,9 +560,3 @@ with DAG(
     #     insert_cycling_data >> insert_heartrate_data >> insert_walking_running_data >> \
     #     create_table_combined >> export_combined_data >> \
     #     delete_cycling_file >> delete_heartrate_file >> delete_walking_running_file
-
-
-    create_table_activity_summary >> create_table_exercise_time >> \
-        checking_for_xml_file >> parse_xml_file_task >> \
-        [checking_for_activity_summary_file, checking_for_excercise_time_file] >> \
-        insert_activity_summary_data_task
