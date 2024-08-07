@@ -293,15 +293,15 @@ def preprocess_exercise(df, filename, metric='miles', exercise=False):
     df_date.to_csv(f'tmp/daily_{filename}.csv', index=False)
     return df
 
-def export_combined_activity_exercise_data():
-    conn = psycopg2.connect(
-    host="postgres_health",
-    database="health_db",
-    user="health_db",
-    password="health_db"
-)
-    df =  pd.read_sql('SELECT * FROM combined_activity_exercise', conn)
-    df.to_csv('output/activity_exercise_data.csv', index=False)
+# def export_combined_activity_exercise_data():
+#     conn = psycopg2.connect(
+#     host="postgres_health",
+#     database="health_db",
+#     user="health_db",
+#     password="health_db"
+# )
+#     df =  pd.read_sql('SELECT * FROM combined_activity_exercise', conn)
+#     df.to_csv('output/activity_exercise_data.csv', index=False)
 
 def export_combined_data():
     conn = psycopg2.connect(
@@ -437,11 +437,11 @@ with DAG(
         sql = 'create_table_exercise_time.sql'
     )
 
-    create_table_combined_activity_exercise = PostgresOperator(
-        task_id = 'create_table_combined_activity_exercise',
-        postgres_conn_id = 'postgres_health_db',
-        sql = 'create_table_combined_activity_exercise_data.sql'
-    )
+    # create_table_combined_activity_exercise = PostgresOperator(
+    #     task_id = 'create_table_combined_activity_exercise',
+    #     postgres_conn_id = 'postgres_health_db',
+    #     sql = 'create_table_combined_activity_exercise_data.sql'
+    # )
 
     checking_for_xml_file = FileSensor(
         task_id = 'checking_for_xml_file',
@@ -474,16 +474,16 @@ with DAG(
         python_callable = insert_exercise_time_data
     )
 
-    combine_activity_exercise = PostgresOperator(
-        task_id = 'combine_activity_exercise',
-        postgres_conn_id = 'postgres_health_db',
-        sql = 'combine_activity_exercise.sql'
-    )
+    # combine_activity_exercise = PostgresOperator(
+    #     task_id = 'combine_activity_exercise',
+    #     postgres_conn_id = 'postgres_health_db',
+    #     sql = 'combine_activity_exercise.sql'
+    # )
 
-    export_combined_activity_exercise_data = PythonOperator(
-        task_id = 'export_combined_activity_exercise_data',
-        python_callable = export_combined_activity_exercise_data
-    )
+    # export_combined_activity_exercise_data = PythonOperator(
+    #     task_id = 'export_combined_activity_exercise_data',
+    #     python_callable = export_combined_activity_exercise_data
+    # )
 
     delete_temp_csv_files = BashOperator(
         task_id = 'delete_temp_csv_files',
@@ -562,13 +562,12 @@ with DAG(
         python_callable = export_combined_data
     )
 
-    create_table_activity_summary >> create_table_exercise_time >> create_table_combined_activity_exercise >> \
+    # combine_activity_exercise >> export_combined_activity_exercise_data >> create_table_combined_activity_exercise >> \
+    create_table_activity_summary >> create_table_exercise_time >> \
     create_table_cycling >> create_table_heartrate >> \
     create_table_walking_running >> create_table_combined_data >> \
     checking_for_xml_file >> parse_xml_file_task >> \
     [checking_for_activity_summary_file, checking_for_excercise_time_file, checking_for_cycling_file, checking_for_heartrate_file, checking_for_walking_running_file] >> \
     insert_activity_summary_data_task >> insert_excercise_time_data_task >> \
         insert_cycling_data >> insert_heartrate_data >> insert_walking_running_data >> \
-        create_table_combined >> export_combined_data >> \
-        combine_activity_exercise >> export_combined_activity_exercise_data >> \
-        delete_temp_csv_files
+        create_table_combined >> export_combined_data >> delete_temp_csv_files
