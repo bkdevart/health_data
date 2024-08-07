@@ -246,7 +246,10 @@ def parse_xml_file():
 
     # Iteratively parse the XML file
     for event, elem in ET.iterparse(XML_DATA, events=('end',)):
-        if elem.tag == "Record" and elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling':
+        if elem.tag == "Record" and \
+            (elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling' or
+             elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceWalkingRunning' or
+             elem.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate'):
             # pull out columns of interest
             # records.append(elem.attrib)
             type.append(elem.attrib['type'])
