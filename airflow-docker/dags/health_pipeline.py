@@ -28,111 +28,6 @@ CYCLING_COLS = ['start_date', 'miles', 'seconds', 'avg_mph']
 HEARTRATE_COLS = ['start_date', 'beats_per_min']
 WALKING_RUNNING_COLS = ['start_date', 'miles']
 
-def iterparse_xml():
-    '''
-    Main XML parsing script, streams in file and proccesses each branch into
-    lists, which get converted to data frames and exported to csv files for database upload
-    '''
-    file = 'tmp/export.xml'
-
-    # activity data
-    date = []
-    energy_burned = []
-    energy_burned_goal = []
-    energy_burned_unit = []
-    exercise_time = []
-    exercise_time_goal = []
-    stand_hours = []
-    stand_hours_goal = []
-
-    # exercise time
-    exercise_time_type = []
-    exercise_time_date = []
-    exercise_time_duration = []
-    exercise_time_durationUnit = []
-
-    for event, elem in ET.iterparse(file, events=("start", "end")):
-        if event == 'end':
-            # process the tag
-            if elem.tag == 'ActivitySummary':
-                # import pdb;pdb.set_trace()
-                for item in elem.items():
-                    if item[0] == 'dateComponents':
-                        date.append(item[1])
-                    elif item[0] == 'activeEnergyBurned':
-                        energy_burned.append(item[1])
-                    elif item[0] == 'activeEnergyBurnedGoal':
-                        energy_burned_goal.append(item[1])
-                    elif item[0] == 'activeEnergyBurnedUnit':
-                        energy_burned_unit.append(item[1])
-                    elif item[0] == 'appleExerciseTime':
-                        exercise_time.append(item[1])
-                    elif item[0] == 'appleExerciseTimeGoal':
-                        exercise_time_goal.append(item[1])
-                    elif item[0] == 'appleStandHours':
-                        stand_hours.append(item[1])
-                    elif item[0] == 'appleStandHoursGoal':
-                        stand_hours_goal.append(item[1])
-            if elem.tag == 'WorkoutEvent':
-                for item in elem.items():
-                    if item[0] == 'type':
-                        exercise_time_type.append(item[1])
-                    elif item[0] == 'date':
-                        exercise_time_date.append(item[1])
-                    elif item[0] == 'duration':
-                        exercise_time_duration.append(item[1])
-                    elif item[0] == 'durationUnit':
-                        exercise_time_durationUnit.append(item[1])
-            
-            # this is the key to memory management on the server
-            elem.clear()
-
-    # create activity data data frame
-    print('Creating activity data...')
-    li = list(zip(date, energy_burned, energy_burned_goal,
-                energy_burned_unit, exercise_time,
-                exercise_time_goal, stand_hours, stand_hours_goal))
-    df = pd.DataFrame(li, columns=['date',
-                                'energy_burned',
-                                'energy_burned_goal',
-                                'energy_burned_unit',
-                                'exercise_time',
-                                'exercise_time_goal',
-                                'stand_hours',
-                                'stand_hours_goal'])
-    # remove dates before 2000-01-01
-    df['datetime'] = pd.to_datetime(df['date'])
-    df = df[df['datetime'] > '2000-01-01']
-    # drop datetime column
-    df = df.drop(['datetime'], axis=1)
-    # add created_at, last_updated_by
-    df['created_at'] = pd.to_datetime('now')
-    df['updated_at'] = pd.to_datetime('now')
-    df.fillna(0, inplace=True)
-
-    # create exercise time data frame
-    print('Creating exercise time data...')
-    li = list(zip(exercise_time_date, exercise_time_type,
-                exercise_time_duration, exercise_time_durationUnit))
-    exercise_time = pd.DataFrame(li,
-                                columns=['date',
-                                        'exercise_time_type',
-                                        'exercise_time_duration',
-                                        'exercise_time_durationUnit'])
-    # remove dates before 2000-01-01
-    exercise_time['datetime'] = pd.to_datetime(exercise_time['date'])
-    exercise_time = exercise_time[exercise_time['datetime'] > '2000-01-01']
-    # drop datetime column
-    exercise_time = exercise_time.drop(['datetime'], axis=1)
-    # add created_at, last_updated_by
-    exercise_time['created_at'] = pd.to_datetime('now')
-    exercise_time['updated_at'] = pd.to_datetime('now')
-    exercise_time.fillna(0, inplace=True)
-
-    # csv exports
-    df.to_csv('tmp/activity_summary.csv', index=False)
-    exercise_time.to_csv('tmp/exercise_time.csv', index=False)
-
 def insert_activity_summary_data():
     conn = psycopg2.connect(
         host="postgres_health",
@@ -210,7 +105,7 @@ def insert_exercise_time_data():
 def parse_xml_file():
     XML_DATA = "tmp/export.xml"
 
-    # general data (explore other sections of xml later)
+    # general data fields (explore other sections of xml later)
     # TODO: restore sourceVersion, device data by checking for null before adding
     type = [] 
     sourceName = [] 
@@ -222,8 +117,23 @@ def parse_xml_file():
     endDate = [] 
     value = []
 
+    # activity_summary fields
+    date = []
+    energy_burned = []
+    energy_burned_goal = []
+    energy_burned_unit = []
+    exercise_time = []
+    exercise_time_goal = []
+    stand_hours = []
+    stand_hours_goal = []
+
+    # exercise fields
+    exercise_time_type = []
+    exercise_time_date = []
+    exercise_time_duration = []
+    exercise_time_durationUnit = []
+
     # Iteratively parse the XML file
-    # TODO: combine other parse_xml method with this one to optimize run time
     for event, elem in ET.iterparse(XML_DATA, events=('end',)):
         if elem.tag == "Record" and \
             (elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling' or
@@ -240,8 +150,37 @@ def parse_xml_file():
             startDate.append(elem.attrib['startDate'])
             endDate.append(elem.attrib['endDate'])
             value.append(elem.attrib['value'])
+        elif elem.tag == "ActivitySummary":
+            for item in elem.items():
+                if item[0] == 'dateComponents':
+                    date.append(item[1])
+                elif item[0] == 'activeEnergyBurned':
+                    energy_burned.append(item[1])
+                elif item[0] == 'activeEnergyBurnedGoal':
+                    energy_burned_goal.append(item[1])
+                elif item[0] == 'activeEnergyBurnedUnit':
+                    energy_burned_unit.append(item[1])
+                elif item[0] == 'appleExerciseTime':
+                    exercise_time.append(item[1])
+                elif item[0] == 'appleExerciseTimeGoal':
+                    exercise_time_goal.append(item[1])
+                elif item[0] == 'appleStandHours':
+                    stand_hours.append(item[1])
+                elif item[0] == 'appleStandHoursGoal':
+                    stand_hours_goal.append(item[1])
+        elif elem.tag == 'WorkoutEvent':
+            for item in elem.items():
+                if item[0] == 'type':
+                    exercise_time_type.append(item[1])
+                elif item[0] == 'date':
+                    exercise_time_date.append(item[1])
+                elif item[0] == 'duration':
+                    exercise_time_duration.append(item[1])
+                elif item[0] == 'durationUnit':
+                    exercise_time_durationUnit.append(item[1])
         elem.clear()  # Clear the element to save memory
 
+    # create records dataframe
     li = list(zip(type, sourceName, 
                 # sourceVersion,
                 # device, 
@@ -260,6 +199,7 @@ def parse_xml_file():
     date_col = ['creationDate', 'startDate', 'endDate']
     records_df[date_col] = records_df[date_col].apply(pd.to_datetime)
 
+    # filter data from records_df
     cycling_df = records_df.query("type == 'HKQuantityTypeIdentifierDistanceCycling'").copy()
     cycling_df = preprocess_exercise(cycling_df, 'cycling', exercise=True)
 
@@ -268,6 +208,53 @@ def parse_xml_file():
 
     heart_rate_df = records_df.query("type == 'HKQuantityTypeIdentifierHeartRate'").copy()
     heart_rate_df = preprocess_exercise(heart_rate_df, 'heart_rate', metric='beats_per_min')
+
+    # create activity data data frame
+    print('Creating activity data...')
+    li = list(zip(date, energy_burned, energy_burned_goal,
+                energy_burned_unit, exercise_time,
+                exercise_time_goal, stand_hours, stand_hours_goal))
+    activity_df = pd.DataFrame(li, columns=['date',
+                                'energy_burned',
+                                'energy_burned_goal',
+                                'energy_burned_unit',
+                                'exercise_time',
+                                'exercise_time_goal',
+                                'stand_hours',
+                                'stand_hours_goal'])
+    # remove dates before 2000-01-01
+    activity_df['datetime'] = pd.to_datetime(activity_df['date'])
+    activity_df = activity_df[activity_df['datetime'] > '2000-01-01']
+    # drop datetime column
+    activity_df = activity_df.drop(['datetime'], axis=1)
+    # add created_at, last_updated_by
+    activity_df['created_at'] = pd.to_datetime('now')
+    activity_df['updated_at'] = pd.to_datetime('now')
+    activity_df.fillna(0, inplace=True)
+
+    # create exercise time data frame
+    print('Creating exercise time data...')
+    li = list(zip(exercise_time_date, exercise_time_type,
+                exercise_time_duration, exercise_time_durationUnit))
+    exercise_time = pd.DataFrame(li,
+                                columns=['date',
+                                        'exercise_time_type',
+                                        'exercise_time_duration',
+                                        'exercise_time_durationUnit'])
+    # remove dates before 2000-01-01
+    exercise_time['datetime'] = pd.to_datetime(exercise_time['date'])
+    exercise_time = exercise_time[exercise_time['datetime'] > '2000-01-01']
+    # drop datetime column
+    exercise_time = exercise_time.drop(['datetime'], axis=1)
+    # add created_at, last_updated_by
+    exercise_time['created_at'] = pd.to_datetime('now')
+    exercise_time['updated_at'] = pd.to_datetime('now')
+    exercise_time.fillna(0, inplace=True)
+
+    # activity and exercise csv exports
+    activity_df.to_csv('tmp/activity_summary.csv', index=False)
+    exercise_time.to_csv('tmp/exercise_time.csv', index=False)
+
 
 def preprocess_exercise(df, filename, metric='miles', exercise=False):
     # clean up exercise data - may want to restore device later
@@ -428,15 +415,15 @@ with DAG(
     template_searchpath = '/opt/airflow/sql'
 ) as dag:
 
-    parse_xml_file_old_task = PythonOperator(
-        task_id = 'parse_xml_file_old_task',
+    parse_xml_file_task = PythonOperator(
+        task_id = 'parse_xml_file_task',
         python_callable = parse_xml_file
     )
 
-    parse_xml_file_task = PythonOperator(
-        task_id = 'parse_xml_file_task',
-        python_callable = iterparse_xml
-    )
+    # parse_xml_file_task = PythonOperator(
+    #     task_id = 'parse_xml_file_task',
+    #     python_callable = iterparse_xml
+    # )
 
     create_table_activity_summary = PostgresOperator(
         task_id = 'create_table_activity_summary',
@@ -578,7 +565,7 @@ with DAG(
     create_table_activity_summary >> create_table_exercise_time >> create_table_combined_activity_exercise >> \
     create_table_cycling >> create_table_heartrate >> \
     create_table_walking_running >> create_table_combined_data >> \
-    checking_for_xml_file >> parse_xml_file_old_task >> parse_xml_file_task >> \
+    checking_for_xml_file >> parse_xml_file_task >> \
     [checking_for_activity_summary_file, checking_for_excercise_time_file, checking_for_cycling_file, checking_for_heartrate_file, checking_for_walking_running_file] >> \
     insert_activity_summary_data_task >> insert_excercise_time_data_task >> \
         insert_cycling_data >> insert_heartrate_data >> insert_walking_running_data >> \
