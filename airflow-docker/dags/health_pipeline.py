@@ -210,13 +210,70 @@ def insert_exercise_time_data():
 def parse_xml_file():
     # TODO: need to use iterparse method to execute this
     XML_DATA = "tmp/export.xml"
-    # Parse XML file exported from Apple Health app
-    tree = ET.parse(XML_DATA)
-    root = tree.getroot()
+    # method 1:
+    # # Parse XML file exported from Apple Health app
+    # tree = ET.parse(XML_DATA)
+    # root = tree.getroot()
 
-    # Store "Record" type data into Pandas.DataFrame
-    records = [i.attrib for i in root.iter("Record")]
-    records_df = pd.DataFrame(records)
+    # # Store "Record" type data into Pandas.DataFrame
+    # records = [i.attrib for i in root.iter("Record")]
+    # records_df = pd.DataFrame(records)
+    
+    # method 2:
+    # records = []
+
+    # # Iteratively parse the XML file
+    # for event, elem in ET.iterparse(XML_DATA, events=('end',)):
+    #     if elem.tag == "Record" and elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling':
+    #         records.append(elem.attrib)
+    #     elem.clear()  # Clear the element to save memory
+
+    # # Store "Record" type data into Pandas.DataFrame
+    # records_df = pd.DataFrame(records)
+
+    # method 3:
+    records = []
+    # cycling data
+    type = [] 
+    sourceName = [] 
+    sourceVersion = [] 
+    device = [] 
+    unit = [] 
+    creationDate = []
+    startDate = [] 
+    endDate = [] 
+    value = []
+
+    # Iteratively parse the XML file
+    for event, elem in ET.iterparse(XML_DATA, events=('end',)):
+        if elem.tag == "Record" and elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling':
+            # pull out columns of interest
+            # records.append(elem.attrib)
+            type.append(elem.attrib['type'])
+            sourceName.append(elem.attrib['sourceName'])
+            # sourceVersion.append(elem.attrib['sourceVersion'])
+            # device.append(elem.attrib['device'])
+            unit.append(elem.attrib['unit'])
+            creationDate.append(elem.attrib['creationDate'])
+            startDate.append(elem.attrib['startDate'])
+            endDate.append(elem.attrib['endDate'])
+            value.append(elem.attrib['value'])
+        elem.clear()  # Clear the element to save memory
+
+    li = list(zip(type, sourceName, 
+                #sourceVersion,
+                # device, 
+                unit,
+                    creationDate, startDate, endDate, value))
+    records_df = pd.DataFrame(li, columns=['type',
+                                'sourceName',
+                                # 'sourceVersion',
+                                # 'device',
+                                'unit',
+                                'creationDate',
+                                'startDate',
+                                'endDate',
+                                'value'])
 
     # Convert datetime format
     date_col = ['creationDate', 'startDate', 'endDate']
@@ -233,7 +290,9 @@ def parse_xml_file():
 
 def preprocess_exercise(df, filename, metric='miles', exercise=False):
     # clean up exercise data - may want to restore device later
-    df.drop(['type', 'sourceName', 'unit', 'device', 'sourceVersion'], 
+    df.drop(['type', 'sourceName', 'unit',
+             # 'device', 'sourceVersion'
+             ], 
                     axis=1, 
                     inplace=True)
     df.rename(columns={'value': metric, 
@@ -263,7 +322,7 @@ def preprocess_exercise(df, filename, metric='miles', exercise=False):
     else:
         df_date = df.groupby(df['start_date'].dt.date)[[metric]].sum().reset_index()
 
-    df_date.to_csv(f'cleaned_data/daily_{filename}.csv', index=False)
+    df_date.to_csv(f'tmp/daily_{filename}.csv', index=False)
     return df
 
 def export_combined_activity_exercise_data():
@@ -388,6 +447,11 @@ with DAG(
     template_searchpath = '/opt/airflow/sql'
 ) as dag:
 
+    parse_xml_file_old_task = PythonOperator(
+        task_id = 'parse_xml_file_old_task',
+        python_callable = parse_xml_file
+    )
+
     parse_xml_file_task = PythonOperator(
         task_id = 'parse_xml_file_task',
         python_callable = iterparse_xml
@@ -455,11 +519,11 @@ with DAG(
 
     delete_temp_csv_files = BashOperator(
         task_id = 'delete_temp_csv_files',
-        bash_command = 'rm /opt/airflow/tmp/*.csv'
+        bash_command = 'rm -f /opt/airflow/tmp/*.csv'
     )
 
     create_table_activity_summary >> create_table_exercise_time >> create_table_combined_activity_exercise >>\
-        checking_for_xml_file >> parse_xml_file_task >> \
+        checking_for_xml_file >> parse_xml_file_old_task >> parse_xml_file_task >> \
         [checking_for_activity_summary_file, checking_for_excercise_time_file] >> \
         insert_activity_summary_data_task >> insert_excercise_time_data_task >> \
             combine_activity_exercise >> export_combined_activity_exercise_data >> \
