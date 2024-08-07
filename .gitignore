@@ -2,9 +2,9 @@
 cleaned_data
 apple_health_export
 __pycache__
-airflow-docker/logs
-airflow-docker/output
-airflow-docker/tmp
+logs
+output
+tmp
 
 # files
 .DS_Store
