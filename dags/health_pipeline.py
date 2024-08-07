@@ -12,9 +12,9 @@ from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.sensors.filesystem import FileSensor
-from airflow.models.connection import Connection
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import BranchPythonOperator
+# from airflow.models.connection import Connection
+# from airflow.operators.dummy_operator import DummyOperator
+# from airflow.operators.python_operator import BranchPythonOperator
 
 
 default_args = {
@@ -293,16 +293,6 @@ def preprocess_exercise(df, filename, metric='miles', exercise=False):
     df_date.to_csv(f'tmp/daily_{filename}.csv', index=False)
     return df
 
-# def export_combined_activity_exercise_data():
-#     conn = psycopg2.connect(
-#     host="postgres_health",
-#     database="health_db",
-#     user="health_db",
-#     password="health_db"
-# )
-#     df =  pd.read_sql('SELECT * FROM combined_activity_exercise', conn)
-#     df.to_csv('output/activity_exercise_data.csv', index=False)
-
 def export_combined_data():
     conn = psycopg2.connect(
         host="postgres_health",
@@ -420,11 +410,6 @@ with DAG(
         python_callable = parse_xml_file
     )
 
-    # parse_xml_file_task = PythonOperator(
-    #     task_id = 'parse_xml_file_task',
-    #     python_callable = iterparse_xml
-    # )
-
     create_table_activity_summary = PostgresOperator(
         task_id = 'create_table_activity_summary',
         postgres_conn_id = 'postgres_health_db',
@@ -436,12 +421,6 @@ with DAG(
         postgres_conn_id = 'postgres_health_db',
         sql = 'create_table_exercise_time.sql'
     )
-
-    # create_table_combined_activity_exercise = PostgresOperator(
-    #     task_id = 'create_table_combined_activity_exercise',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'create_table_combined_activity_exercise_data.sql'
-    # )
 
     checking_for_xml_file = FileSensor(
         task_id = 'checking_for_xml_file',
@@ -473,17 +452,6 @@ with DAG(
         task_id = 'insert_excercise_time_data_task',
         python_callable = insert_exercise_time_data
     )
-
-    # combine_activity_exercise = PostgresOperator(
-    #     task_id = 'combine_activity_exercise',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'combine_activity_exercise.sql'
-    # )
-
-    # export_combined_activity_exercise_data = PythonOperator(
-    #     task_id = 'export_combined_activity_exercise_data',
-    #     python_callable = export_combined_activity_exercise_data
-    # )
 
     delete_temp_csv_files = BashOperator(
         task_id = 'delete_temp_csv_files',
