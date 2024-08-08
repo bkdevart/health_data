@@ -3,7 +3,7 @@ import datetime as dt
 import pandas as pd
 import xml.etree.ElementTree as ET
 
-XML_DATA = "apple_health_export/export.xml"
+XML_DATA = "../../apple_health_export/export.xml"
 
 records = []
 # cycling data
@@ -19,7 +19,7 @@ value = []
 
 # Iteratively parse the XML file
 for event, elem in ET.iterparse(XML_DATA, events=('end',)):
-    if elem.tag == "Record" and elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling':
+    if elem.tag == "Record" and elem.attrib['type'] == 'HKQuantityTypeIdentifierActiveEnergyBurned':
         # pull out columns of interest
         # records.append(elem.attrib)
         type.append(elem.attrib['type'])

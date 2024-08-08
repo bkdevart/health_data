@@ -116,6 +116,7 @@ def parse_xml_file():
     startDate = [] 
     endDate = [] 
     value = []
+    # value = np.array([])
 
     # activity_summary fields
     date = []
@@ -133,12 +134,18 @@ def parse_xml_file():
     exercise_time_duration = []
     exercise_time_durationUnit = []
 
+    print('Starting to read XML into lists')
     # Iteratively parse the XML file
     for event, elem in ET.iterparse(XML_DATA, events=('end',)):
         if elem.tag == "Record" and \
             (elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling' or
              elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceWalkingRunning' or
-             elem.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate'):
+             elem.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate' or
+             elem.attrib['type'] == 'HKQuantityTypeIdentifierStepCount' or
+             elem.attrib['type'] == 'HKQuantityTypeIdentifierActiveEnergyBurned' or
+            # TODO: adding BasalEnergyBurned results in memory issues, find a more optimal way of doing this
+            # TODO: try to implement numerical columns as numpy arrays to save on memory
+             elem.attrib['type'] == 'HKQuantityTypeIdentifierBasalEnergyBurned'):
             # pull out columns of interest
             # records.append(elem.attrib)
             type.append(elem.attrib['type'])
@@ -149,6 +156,7 @@ def parse_xml_file():
             creationDate.append(elem.attrib['creationDate'])
             startDate.append(elem.attrib['startDate'])
             endDate.append(elem.attrib['endDate'])
+            # value = np.append(value, elem.attrib['value'])
             value.append(elem.attrib['value'])
         elif elem.tag == "ActivitySummary":
             for item in elem.items():
@@ -180,25 +188,26 @@ def parse_xml_file():
                     exercise_time_durationUnit.append(item[1])
         elem.clear()  # Clear the element to save memory
 
+    print('finished reading XML into lists')
     # create records dataframe
-    li = list(zip(type, sourceName, 
-                # sourceVersion,
-                # device, 
-                unit, creationDate, startDate, endDate, value))
-    records_df = pd.DataFrame(li, columns=['type',
-                                'sourceName',
-                                # 'sourceVersion',
-                                # 'device',
-                                'unit',
-                                'creationDate',
-                                'startDate',
-                                'endDate',
-                                'value'])
+    records_df = pd.DataFrame({
+        'type': type,
+        'sourceName': sourceName,
+        'unit': unit,
+        'creationDate': creationDate,
+        'startDate': startDate,
+        'endDate': endDate,
+        'value': value
+    })
+
+    # del individual lists here to save memory
+    del type, sourceName, unit, creationDate, startDate, endDate, value
 
     # Convert datetime format
     date_col = ['creationDate', 'startDate', 'endDate']
     records_df[date_col] = records_df[date_col].apply(pd.to_datetime)
 
+    # TODO: move this to another task, passing the records_df through XCOM
     # filter data from records_df
     cycling_df = records_df.query("type == 'HKQuantityTypeIdentifierDistanceCycling'").copy()
     cycling_df = preprocess_exercise(cycling_df, 'cycling', exercise=True)
@@ -208,6 +217,17 @@ def parse_xml_file():
 
     heart_rate_df = records_df.query("type == 'HKQuantityTypeIdentifierHeartRate'").copy()
     heart_rate_df = preprocess_exercise(heart_rate_df, 'heart_rate', metric='beats_per_min')
+
+    # HKQuantityTypeIdentifierStepCount, HKQuantityTypeIdentifierBasalEnergyBurned, HKQuantityTypeIdentifierActiveEnergyBurned
+    steps_df = records_df.query("type == 'HKQuantityTypeIdentifierStepCount'").copy()
+    steps_df = preprocess_exercise(steps_df, 'steps', metric='steps')
+
+    # TODO: add back in once memory issue resolved
+    energy_basal_df = records_df.query("type == 'HKQuantityTypeIdentifierBasalEnergyBurned'").copy()
+    energy_basal_df = preprocess_exercise(energy_basal_df, 'energy_basal', metric='energy')
+
+    energy_active_df = records_df.query("type == 'HKQuantityTypeIdentifierActiveEnergyBurned'").copy()
+    energy_active_df = preprocess_exercise(energy_active_df, 'energy_active', metric='energy')
 
     # create activity data data frame
     print('Creating activity data...')
@@ -453,6 +473,18 @@ with DAG(
         python_callable = insert_exercise_time_data
     )
 
+    backup_csv_files = BashOperator(
+        task_id = 'backup_csv_files',
+        bash_command = '''
+            mkdir -p /opt/airflow/output &&
+            cp -f /opt/airflow/tmp/cycling.csv /opt/airflow/output/cycling.csv &&
+            cp -f /opt/airflow/tmp/walking_running.csv /opt/airflow/output/walking_running.csv &&
+            cp -f /opt/airflow/tmp/heart_rate.csv /opt/airflow/output/heart_rate.csv &&
+            cp -f /opt/airflow/tmp/steps.csv /opt/airflow/output/steps.csv &&
+            cp -f /opt/airflow/tmp/energy_basal.csv /opt/airflow/output/energy_basal.csv
+            '''
+    )
+
     delete_temp_csv_files = BashOperator(
         task_id = 'delete_temp_csv_files',
         bash_command = 'rm -f /opt/airflow/tmp/*.csv'
@@ -538,4 +570,4 @@ with DAG(
     [checking_for_activity_summary_file, checking_for_excercise_time_file, checking_for_cycling_file, checking_for_heartrate_file, checking_for_walking_running_file] >> \
     insert_activity_summary_data_task >> insert_excercise_time_data_task >> \
         insert_cycling_data >> insert_heartrate_data >> insert_walking_running_data >> \
-        create_table_combined >> export_combined_data >> delete_temp_csv_files
+        create_table_combined >> export_combined_data >> backup_csv_files >> delete_temp_csv_files
