@@ -142,7 +142,7 @@ def parse_xml_file():
              elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceWalkingRunning' or
              elem.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate' or
              elem.attrib['type'] == 'HKQuantityTypeIdentifierStepCount' or
-             elem.attrib['type'] == 'HKQuantityTypeIdentifierActiveEnergyBurned' or
+            #  elem.attrib['type'] == 'HKQuantityTypeIdentifierActiveEnergyBurned' or
             # TODO: adding BasalEnergyBurned results in memory issues, find a more optimal way of doing this
             # TODO: try to implement numerical columns as numpy arrays to save on memory
              elem.attrib['type'] == 'HKQuantityTypeIdentifierBasalEnergyBurned'):
@@ -226,8 +226,8 @@ def parse_xml_file():
     energy_basal_df = records_df.query("type == 'HKQuantityTypeIdentifierBasalEnergyBurned'").copy()
     energy_basal_df = preprocess_exercise(energy_basal_df, 'energy_basal', metric='energy')
 
-    energy_active_df = records_df.query("type == 'HKQuantityTypeIdentifierActiveEnergyBurned'").copy()
-    energy_active_df = preprocess_exercise(energy_active_df, 'energy_active', metric='energy')
+    # energy_active_df = records_df.query("type == 'HKQuantityTypeIdentifierActiveEnergyBurned'").copy()
+    # energy_active_df = preprocess_exercise(energy_active_df, 'energy_active', metric='energy')
 
     # create activity data data frame
     print('Creating activity data...')
