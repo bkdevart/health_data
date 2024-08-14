@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS activity_summary (
-    id SERIAL PRIMARY KEY,
+    activity_summary_id SERIAL PRIMARY KEY,
+    customer_id VARCHAR,
     date DATE,
     energy_burned FLOAT,
     energy_burned_goal INT,

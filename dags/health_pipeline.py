@@ -28,7 +28,21 @@ CYCLING_COLS = ['start_date', 'miles', 'seconds', 'avg_mph']
 HEARTRATE_COLS = ['start_date', 'beats_per_min']
 WALKING_RUNNING_COLS = ['start_date', 'miles']
 
-def insert_activity_summary_data():
+def pull_customer_id(**kwargs):
+    ti = kwargs["ti"]
+
+    conn = psycopg2.connect(
+        host="postgres_health",
+        database="health_db",
+        user="health_db",
+        password="health_db"
+    )
+
+    df = pd.read_sql('SELECT customer_id FROM dim_customer;', conn)
+    customer_id = df['customer_id'].values[0]
+    ti.xcom_push('customer_id', customer_id)
+
+def insert_activity_summary_data(**kwargs):
     conn = psycopg2.connect(
         host="postgres_health",
         database="health_db",
@@ -40,15 +54,21 @@ def insert_activity_summary_data():
 
     # for file in glob.glob('tmp/activity_summary.csv'):
     df = pd.read_csv('tmp/activity_summary.csv')
+    
+    # add customer_id
+    ti = kwargs["ti"]
+    customer_id = ti.xcom_pull(task_ids='pull_customer_id', key='customer_id')
+    df['customer_id'] = customer_id
 
     records = df.to_dict('records')
     
     for record in records:
         query = f"""INSERT INTO activity_summary 
-                    (date, energy_burned, energy_burned_goal, energy_burned_unit,
+                    (customer_id, date, energy_burned, energy_burned_goal, energy_burned_unit,
                         exercise_time, exercise_time_goal, stand_hours, stand_hours_goal,
                         created_at, updated_at) 
                     VALUES (
+                        '{record['customer_id']}',
                         '{record['date']}',
                         '{record['energy_burned']}', 
                         '{record['energy_burned_goal']}',
@@ -103,7 +123,6 @@ def insert_exercise_time_data():
     conn.close()
     
 def parse_xml_file():
-    # TODO: implement user_id creation and tracking from xml data
     XML_DATA = "tmp/export.xml"
 
     # general data fields (explore other sections of xml later)
@@ -140,6 +159,15 @@ def parse_xml_file():
     sex = ''
     blood_type = ''
 
+    # TODO: adding ActiveEnergyBurned results in memory issues, find a more optimal way of doing this
+    activity_types = ['HKQuantityTypeIdentifierDistanceCycling', 
+                      'HKQuantityTypeIdentifierDistanceWalkingRunning',
+                      'HKQuantityTypeIdentifierHeartRate', 
+                      'HKQuantityTypeIdentifierStepCount',
+                      'HKQuantityTypeIdentifierBasalEnergyBurned',
+                    #   'HKQuantityTypeIdentifierActiveEnergyBurned',
+                      ]
+
     print('Starting to read XML into lists')
     # Iteratively parse the XML file
     for event, elem in ET.iterparse(XML_DATA, events=('end',)):
@@ -147,14 +175,13 @@ def parse_xml_file():
             birthday = elem.attrib['HKCharacteristicTypeIdentifierDateOfBirth']
             sex = elem.attrib['HKCharacteristicTypeIdentifierBiologicalSex']
             blood_type = elem.attrib['HKCharacteristicTypeIdentifierBloodType']
-        if elem.tag == "Record" and \
-            (elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling' or
-             elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceWalkingRunning' or
-             elem.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate' or
-             elem.attrib['type'] == 'HKQuantityTypeIdentifierStepCount' or
-            #  elem.attrib['type'] == 'HKQuantityTypeIdentifierActiveEnergyBurned' or
-            # TODO: adding ActiveEnergyBurned results in memory issues, find a more optimal way of doing this
-             elem.attrib['type'] == 'HKQuantityTypeIdentifierBasalEnergyBurned'):
+        if elem.tag == "Record" and elem.attrib['type'].isin(activity_types):
+            # (elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling' or
+            #  elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceWalkingRunning' or
+            #  elem.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate' or
+            #  elem.attrib['type'] == 'HKQuantityTypeIdentifierStepCount' or
+            # #  elem.attrib['type'] == 'HKQuantityTypeIdentifierActiveEnergyBurned' or
+            #  elem.attrib['type'] == 'HKQuantityTypeIdentifierBasalEnergyBurned'):
             # pull out columns of interest
             # records.append(elem.attrib)
             type.append(elem.attrib['type'])
@@ -534,7 +561,6 @@ with DAG(
             cp -f /opt/airflow/tmp/heart_rate.csv /opt/airflow/output/heart_rate.csv &&
             cp -f /opt/airflow/tmp/steps.csv /opt/airflow/output/steps.csv &&
             cp -f /opt/airflow/tmp/energy_basal.csv /opt/airflow/output/energy_basal.csv
-            cp -f /opt/airflow/tmp/customer.csv /opt/airflow/output/customer.csv
             '''
     )
 
@@ -588,6 +614,11 @@ with DAG(
         timeout = 60 * 10
     )
 
+    pull_customer_id = PythonOperator(
+        task_id = 'pull_customer_id',
+        python_callable = pull_customer_id
+    )
+
     insert_customer_data = PythonOperator(
         task_id = 'insert_customer_data',
         python_callable = insert_customer_data
@@ -626,6 +657,6 @@ with DAG(
     create_table_walking_running >> create_table_combined_data >> \
     checking_for_xml_file >> parse_xml_file_task >> \
     [checking_for_activity_summary_file, checking_for_excercise_time_file, checking_for_cycling_file, checking_for_heartrate_file, checking_for_walking_running_file] >> \
-    insert_customer_data >> insert_activity_summary_data_task >> insert_excercise_time_data_task >> \
+    insert_customer_data >> pull_customer_id >> insert_activity_summary_data_task >> insert_excercise_time_data_task >> \
         insert_cycling_data >> insert_heartrate_data >> insert_walking_running_data >> \
         create_table_combined >> export_combined_data >> backup_csv_files >> delete_temp_csv_files
