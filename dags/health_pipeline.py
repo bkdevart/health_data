@@ -73,8 +73,8 @@ def insert_dim_activity_type_data(**kwargs):
     # select from the table to get db-assigned ids and push to XCOM
     df = pd.read_sql('SELECT * FROM dim_activity_type;', conn)
     activity_types_dict = df.to_dict()
-    activity_types_string = json.dumps(activity_types_dict)
-    ti.xcom_push('activity_types', activity_types_string)
+    # activity_types_string = json.dumps(activity_types_dict)
+    ti.xcom_push('activity_types', activity_types_dict)
 
     cur.close()
     conn.close()
@@ -437,7 +437,7 @@ def insert_customer_data():
     cur.close()
     conn.close()
 
-def insert_cycling_data():
+def insert_cycling_data(**kwargs):
     conn = psycopg2.connect(
         host="postgres_health",
         database="health_db",
@@ -447,22 +447,36 @@ def insert_cycling_data():
 
     cur = conn.cursor()
 
-    for file in glob.glob('tmp/' + CYCLING_FILENAME):
-        df = pd.read_csv(file, usecols=CYCLING_COLS)
+    # pull activity ID for cycling activity and add to data
+    ti = kwargs["ti"]
+    activity_types = ti.xcom_pull(task_ids='insert_dim_activity_type_data', key='activity_types')
+    activity_types = pd.DataFrame(activity_types)
+    print(activity_types.head())
+    activity_type_id = activity_types[activity_types['activity_name'] == 'HKQuantityTypeIdentifierDistanceCycling']
+    activity_type_id = activity_type_id['activity_type_id'].values[0]
 
-        records = df.to_dict('records')
-        
-        for record in records:
-            query = f"""INSERT INTO cycling 
-                        (start_date, miles, seconds, avg_mph) 
-                        VALUES (
-                            '{record['start_date']}', 
-                            '{record['miles']}', 
-                            '{record['seconds']}', 
-                            {record['avg_mph']})
-                    """
+    file = 'tmp/' + CYCLING_FILENAME
+    df = pd.read_csv(file, usecols=CYCLING_COLS)
+    df['activity_type_id'] = activity_type_id
 
-            cur.execute(query)
+    # add customer id to data
+    customer_id = ti.xcom_pull(task_ids='pull_customer_id', key='customer_id')
+    df['customer_id'] = customer_id
+
+    records = df.to_dict('records')
+    
+    for record in records:
+        query = f"""INSERT INTO cycling 
+                    (start_date, miles, seconds, avg_mph, activity_type_id) 
+                    VALUES (
+                        '{record['start_date']}', 
+                        '{record['miles']}', 
+                        '{record['seconds']}', 
+                        {record['avg_mph']},
+                        '{record['activity_type_id']}')
+                """
+
+        cur.execute(query)
 
     conn.commit()
 
