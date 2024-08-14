@@ -103,6 +103,7 @@ def insert_exercise_time_data():
     conn.close()
     
 def parse_xml_file():
+    # TODO: implement user_id creation and tracking from xml data
     XML_DATA = "tmp/export.xml"
 
     # general data fields (explore other sections of xml later)
@@ -134,17 +135,25 @@ def parse_xml_file():
     exercise_time_duration = []
     exercise_time_durationUnit = []
 
+    # personal info fields
+    birthday = ''
+    sex = ''
+    blood_type = ''
+
     print('Starting to read XML into lists')
     # Iteratively parse the XML file
     for event, elem in ET.iterparse(XML_DATA, events=('end',)):
+        if elem.tag == 'Me':
+            birthday = elem.attrib['HKCharacteristicTypeIdentifierDateOfBirth']
+            sex = elem.attrib['HKCharacteristicTypeIdentifierBiologicalSex']
+            blood_type = elem.attrib['HKCharacteristicTypeIdentifierBloodType']
         if elem.tag == "Record" and \
             (elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling' or
              elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceWalkingRunning' or
              elem.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate' or
              elem.attrib['type'] == 'HKQuantityTypeIdentifierStepCount' or
             #  elem.attrib['type'] == 'HKQuantityTypeIdentifierActiveEnergyBurned' or
-            # TODO: adding BasalEnergyBurned results in memory issues, find a more optimal way of doing this
-            # TODO: try to implement numerical columns as numpy arrays to save on memory
+            # TODO: adding ActiveEnergyBurned results in memory issues, find a more optimal way of doing this
              elem.attrib['type'] == 'HKQuantityTypeIdentifierBasalEnergyBurned'):
             # pull out columns of interest
             # records.append(elem.attrib)
@@ -200,6 +209,13 @@ def parse_xml_file():
         'value': value
     })
 
+    customer_info = pd.DataFrame({
+        'birthday': birthday,
+        'sex': sex,
+        'blood_type': blood_type
+    })
+    customer_info.to_csv('tmp/customer.csv', index=False)
+
     # del individual lists here to save memory
     del type, sourceName, unit, creationDate, startDate, endDate, value
 
@@ -222,10 +238,10 @@ def parse_xml_file():
     steps_df = records_df.query("type == 'HKQuantityTypeIdentifierStepCount'").copy()
     steps_df = preprocess_exercise(steps_df, 'steps', metric='steps')
 
-    # TODO: add back in once memory issue resolved
     energy_basal_df = records_df.query("type == 'HKQuantityTypeIdentifierBasalEnergyBurned'").copy()
     energy_basal_df = preprocess_exercise(energy_basal_df, 'energy_basal', metric='energy')
 
+    # TODO: add back in once memory issue resolved
     # energy_active_df = records_df.query("type == 'HKQuantityTypeIdentifierActiveEnergyBurned'").copy()
     # energy_active_df = preprocess_exercise(energy_active_df, 'energy_active', metric='energy')
 

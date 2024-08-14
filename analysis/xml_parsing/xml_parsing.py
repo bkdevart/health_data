@@ -1,9 +1,10 @@
 # TODO: implement memory efficient method of extracting data below
-import datetime as dt
+# import datetime as dt
 import pandas as pd
 import xml.etree.ElementTree as ET
 
-XML_DATA = "../../apple_health_export/export.xml"
+# /Users/brandon/Documents/Programming/python/data_analysis/health_data/apple_health_export/export.xml
+XML_DATA = "../../tmp/export.xml"
 
 records = []
 # cycling data
@@ -16,10 +17,19 @@ creationDate = []
 startDate = [] 
 endDate = [] 
 value = []
+birthday = ''
+sex = ''
+blood_type = ''
 
 # Iteratively parse the XML file
-for event, elem in ET.iterparse(XML_DATA, events=('end',)):
-    if elem.tag == "Record" and elem.attrib['type'] == 'HKQuantityTypeIdentifierActiveEnergyBurned':
+for event, elem in ET.iterparse(XML_DATA):
+# for event, elem in ET.iterparse(XML_DATA, events=('end',)):
+    if elem.tag == 'Me':
+        birthday = elem.attrib['HKCharacteristicTypeIdentifierDateOfBirth']
+        sex = elem.attrib['HKCharacteristicTypeIdentifierBiologicalSex']
+        blood_type = elem.attrib['HKCharacteristicTypeIdentifierBloodType']
+    if elem.tag == "Record":
+        #    if elem.attrib['type'] == 'HKCharacteristicTypeIdentifierDateOfBirth':
         # pull out columns of interest
         # records.append(elem.attrib)
         type.append(elem.attrib['type'])
@@ -47,6 +57,9 @@ df = pd.DataFrame(li, columns=['type',
                             'startDate',
                             'endDate',
                             'value'])
+df['birthday'] = birthday
+df['sex'] = sex
+df['blood_type'] = blood_type
 
 
 print(df.head())
