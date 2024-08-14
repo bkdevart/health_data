@@ -339,6 +339,36 @@ def export_combined_data():
     df =  pd.read_sql('SELECT * FROM combined_data', conn)
     df.to_csv('output/combined_data.csv', index=False)
 
+def insert_customer_data():
+    conn = psycopg2.connect(
+        host="postgres_health",
+        database="health_db",
+        user="health_db",
+        password="health_db"
+    )
+
+    cur = conn.cursor()
+
+    df = pd.read_csv('tmp/customer.csv')
+
+    records = df.to_dict('records')
+    
+    for record in records:
+        query = f"""INSERT INTO dim_customer 
+                    (birthday, sex, blood_type) 
+                    VALUES (
+                        '{record['birthday']}', 
+                        '{record['sex']}', 
+                        '{record['blood_type']}')
+                """
+
+        cur.execute(query)
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
 def insert_cycling_data():
     conn = psycopg2.connect(
         host="postgres_health",
@@ -411,20 +441,20 @@ def insert_walking_running_data():
 
     cur = conn.cursor()
 
-    for file in glob.glob('tmp/' + WALKING_RUNNING_FILENAME):
-        df = pd.read_csv(file, usecols=WALKING_RUNNING_COLS)
+    file = ('tmp/' + WALKING_RUNNING_FILENAME)
+    df = pd.read_csv(file, usecols=WALKING_RUNNING_COLS)
 
-        records = df.to_dict('records')
-        
-        for record in records:
-            query = f"""INSERT INTO walking_running 
-                        (start_date, miles) 
-                        VALUES (
-                            '{record['start_date']}', 
-                            '{record['miles']}')
-                    """
+    records = df.to_dict('records')
+    
+    for record in records:
+        query = f"""INSERT INTO walking_running 
+                    (start_date, miles) 
+                    VALUES (
+                        '{record['start_date']}', 
+                        '{record['miles']}')
+                """
 
-            cur.execute(query)
+        cur.execute(query)
 
     conn.commit()
 
@@ -558,6 +588,11 @@ with DAG(
         timeout = 60 * 10
     )
 
+    insert_customer_data = PythonOperator(
+        task_id = 'insert_customer_data',
+        python_callable = insert_customer_data
+    )
+
     insert_cycling_data = PythonOperator(
         task_id = 'insert_cycling_data',
         python_callable = insert_cycling_data
@@ -591,6 +626,6 @@ with DAG(
     create_table_walking_running >> create_table_combined_data >> \
     checking_for_xml_file >> parse_xml_file_task >> \
     [checking_for_activity_summary_file, checking_for_excercise_time_file, checking_for_cycling_file, checking_for_heartrate_file, checking_for_walking_running_file] >> \
-    insert_activity_summary_data_task >> insert_excercise_time_data_task >> \
+    insert_customer_data >> insert_activity_summary_data_task >> insert_excercise_time_data_task >> \
         insert_cycling_data >> insert_heartrate_data >> insert_walking_running_data >> \
         create_table_combined >> export_combined_data >> backup_csv_files >> delete_temp_csv_files
