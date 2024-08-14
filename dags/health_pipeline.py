@@ -49,27 +49,36 @@ def insert_dim_activity_type_data(**kwargs):
         user="health_db",
         password="health_db"
     )
+    cur = conn.cursor()
 
-    # TODO: read from XCOM list of activity types
+    # read from XCOM list of activity types
     ti = kwargs["ti"]
-    activity_types = ti.xcom_pull(task_ids='parse_xml_file', key='activity_types')
+    activity_types = ti.xcom_pull(task_ids='parse_xml_file_task', key='activity_types')
     df = pd.DataFrame({'activity_name': activity_types})
-    df.to_sql('dim_activity_type', conn)
 
-    # records = df.to_dict('records')
+    records = df.to_dict('records')
     
-    # for record in records:
-    #     query = f"""INSERT INTO dim_activity_type 
-    #                 (activity_name) 
-    #                 VALUES (
-    #                     '{record['activity_name']}'
-    #                     )
-    #             """
+    for record in records:
+        query = f"""INSERT INTO dim_activity_type 
+                    (activity_name) 
+                    VALUES (
+                        '{record['activity_name']}'
+                        )
+                """
 
-    #     cur.execute(query)
+        cur.execute(query)
 
-    # conn.commit()
+    conn.commit()
+
+    # select from the table to get db-assigned ids and push to XCOM
+    df = pd.read_sql('SELECT * FROM dim_activity_type;', conn)
+    activity_types_dict = df.to_dict()
+    activity_types_string = json.dumps(activity_types_dict)
+    ti.xcom_push('activity_types', activity_types_string)
+
+    cur.close()
     conn.close()
+    
 
 def insert_activity_summary_data(**kwargs):
     conn = psycopg2.connect(
@@ -207,7 +216,7 @@ def parse_xml_file(**kwargs):
             birthday = elem.attrib['HKCharacteristicTypeIdentifierDateOfBirth']
             sex = elem.attrib['HKCharacteristicTypeIdentifierBiologicalSex']
             blood_type = elem.attrib['HKCharacteristicTypeIdentifierBloodType']
-        if elem.tag == "Record" and elem.attrib['type'].isin(activity_types):
+        if elem.tag == "Record" and elem.attrib['type'] in activity_types:
             # (elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling' or
             #  elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceWalkingRunning' or
             #  elem.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate' or
