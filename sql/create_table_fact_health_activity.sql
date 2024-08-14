@@ -1,9 +1,14 @@
 CREATE TABLE IF NOT EXISTS fact_health_activity (
     activity_id SERIAL PRIMARY KEY,
-    customer_id VARCHAR,
-    activity_type_id VARCHAR,
+    customer_id UUID,
+    activity_type_id UUID,
     start_date DATE,
-    miles FLOAT,
-    seconds FLOAT,
-    avg_mph FLOAT
+    source_name VARCHAR,
+    type VARCHAR,
+    unit VARCHAR,
+    value VARCHAR,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES dim_customer (customer_id),
+    FOREIGN KEY (activity_type_id) REFERENCES dim_activity_type (activity_type_id)
 );

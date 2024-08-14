@@ -570,6 +570,12 @@ with DAG(
         sql = 'create_table_dim_activity_type.sql'
     )
 
+    create_table_fact_health_activity = PostgresOperator(
+        task_id = 'create_table_fact_health_activity',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'create_table_fact_health_activity.sql'
+    )
+
     create_table_activity_summary = PostgresOperator(
         task_id = 'create_table_activity_summary',
         postgres_conn_id = 'postgres_health_db',
@@ -717,10 +723,17 @@ with DAG(
         python_callable = export_combined_data
     )
 
-    # combine_activity_exercise >> export_combined_activity_exercise_data >> create_table_combined_activity_exercise >> \
-    create_table_dim_customer >> create_table_dim_activity_type >> create_table_activity_summary >> create_table_exercise_time >> \
-    create_table_cycling >> create_table_heartrate >> \
-    create_table_walking_running >> create_table_combined_data >> \
+    # create_table_dim_customer >> create_table_dim_activity_type >> create_table_activity_summary >> create_table_exercise_time >> \
+    # create_table_cycling >> create_table_heartrate >> \
+    # create_table_walking_running >> create_table_combined_data >> \
+    # checking_for_xml_file >> parse_xml_file_task >> \
+    # [checking_for_activity_summary_file, checking_for_excercise_time_file, checking_for_cycling_file, checking_for_heartrate_file, checking_for_walking_running_file] >> \
+    # insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_activity_summary_data_task >> insert_excercise_time_data_task >> \
+    #     insert_cycling_data >> insert_heartrate_data >> insert_walking_running_data >> \
+    #     create_table_combined >> export_combined_data >> backup_csv_files >> delete_temp_csv_files
+
+
+    create_table_dim_customer >> create_table_dim_activity_type >> create_table_fact_health_activity >> \
     checking_for_xml_file >> parse_xml_file_task >> \
     [checking_for_activity_summary_file, checking_for_excercise_time_file, checking_for_cycling_file, checking_for_heartrate_file, checking_for_walking_running_file] >> \
     insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_activity_summary_data_task >> insert_excercise_time_data_task >> \

@@ -4,6 +4,6 @@ CREATE TABLE IF NOT EXISTS cycling (
     miles FLOAT,
     seconds FLOAT,
     avg_mph FLOAT,
-    activity_type_id VARCHAR,
-    customer_id VARCHAR
+    activity_type_id UUID,
+    customer_id UUID
 );
