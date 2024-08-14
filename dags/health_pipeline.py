@@ -42,6 +42,35 @@ def pull_customer_id(**kwargs):
     customer_id = df['customer_id'].values[0]
     ti.xcom_push('customer_id', customer_id)
 
+def insert_dim_activity_type_data(**kwargs):
+    conn = psycopg2.connect(
+        host="postgres_health",
+        database="health_db",
+        user="health_db",
+        password="health_db"
+    )
+
+    # TODO: read from XCOM list of activity types
+    ti = kwargs["ti"]
+    activity_types = ti.xcom_pull(task_ids='parse_xml_file', key='activity_types')
+    df = pd.DataFrame({'activity_name': activity_types})
+    df.to_sql('dim_activity_type', conn)
+
+    # records = df.to_dict('records')
+    
+    # for record in records:
+    #     query = f"""INSERT INTO dim_activity_type 
+    #                 (activity_name) 
+    #                 VALUES (
+    #                     '{record['activity_name']}'
+    #                     )
+    #             """
+
+    #     cur.execute(query)
+
+    # conn.commit()
+    conn.close()
+
 def insert_activity_summary_data(**kwargs):
     conn = psycopg2.connect(
         host="postgres_health",
@@ -122,7 +151,7 @@ def insert_exercise_time_data():
     cur.close()
     conn.close()
     
-def parse_xml_file():
+def parse_xml_file(**kwargs):
     XML_DATA = "tmp/export.xml"
 
     # general data fields (explore other sections of xml later)
@@ -167,6 +196,9 @@ def parse_xml_file():
                       'HKQuantityTypeIdentifierBasalEnergyBurned',
                     #   'HKQuantityTypeIdentifierActiveEnergyBurned',
                       ]
+    # push activity_types to XCOM
+    ti = kwargs["ti"]
+    ti.xcom_push('activity_types', activity_types)
 
     print('Starting to read XML into lists')
     # Iteratively parse the XML file
@@ -503,10 +535,16 @@ with DAG(
         python_callable = parse_xml_file
     )
 
-    create_table_customer = PostgresOperator(
-        task_id = 'create_table_customer',
+    create_table_dim_customer = PostgresOperator(
+        task_id = 'create_table_dim_customer',
         postgres_conn_id = 'postgres_health_db',
-        sql = 'create_table_customer.sql'
+        sql = 'create_table_dim_customer.sql'
+    )
+
+    create_table_dim_activity_type = PostgresOperator(
+        task_id = 'create_table_dim_activity_type',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'create_table_dim_activity_type.sql'
     )
 
     create_table_activity_summary = PostgresOperator(
@@ -624,6 +662,11 @@ with DAG(
         python_callable = insert_customer_data
     )
 
+    insert_dim_activity_type_data = PythonOperator(
+        task_id = 'insert_dim_activity_type_data',
+        python_callable = insert_dim_activity_type_data
+    )
+
     insert_cycling_data = PythonOperator(
         task_id = 'insert_cycling_data',
         python_callable = insert_cycling_data
@@ -652,11 +695,11 @@ with DAG(
     )
 
     # combine_activity_exercise >> export_combined_activity_exercise_data >> create_table_combined_activity_exercise >> \
-    create_table_customer >> create_table_activity_summary >> create_table_exercise_time >> \
+    create_table_dim_customer >> create_table_dim_activity_type >> create_table_activity_summary >> create_table_exercise_time >> \
     create_table_cycling >> create_table_heartrate >> \
     create_table_walking_running >> create_table_combined_data >> \
     checking_for_xml_file >> parse_xml_file_task >> \
     [checking_for_activity_summary_file, checking_for_excercise_time_file, checking_for_cycling_file, checking_for_heartrate_file, checking_for_walking_running_file] >> \
-    insert_customer_data >> pull_customer_id >> insert_activity_summary_data_task >> insert_excercise_time_data_task >> \
+    insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_activity_summary_data_task >> insert_excercise_time_data_task >> \
         insert_cycling_data >> insert_heartrate_data >> insert_walking_running_data >> \
         create_table_combined >> export_combined_data >> backup_csv_files >> delete_temp_csv_files
