@@ -4,7 +4,6 @@ CREATE TABLE IF NOT EXISTS fact_health_activity (
     activity_type_id UUID,
     start_date DATE,
     source_name VARCHAR,
-    type VARCHAR,
     unit VARCHAR,
     value VARCHAR,
     created_at TIMESTAMP,

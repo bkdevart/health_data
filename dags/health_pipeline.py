@@ -257,7 +257,7 @@ def parse_xml_file(**kwargs):
                     exercise_time_durationUnit.append(item[1])
         elem.clear()  # Clear the element to save memory
 
-    print('finished reading XML into lists')
+    print('Finished reading XML into lists')
     # create records dataframe
     records_df = pd.DataFrame({
         'type': type,
@@ -269,6 +269,7 @@ def parse_xml_file(**kwargs):
         'value': value
     })
 
+    # TODO: move this to XCOM
     customer_info = pd.DataFrame({
         'birthday': [birthday],
         'sex': [sex],
@@ -284,7 +285,8 @@ def parse_xml_file(**kwargs):
     records_df[date_col] = records_df[date_col].apply(pd.to_datetime)
 
     # TODO: passing the records_df through XCOM?
-    # TODO: push record_df to .csv, stop exports of individual tables that make it up
+    print('Writing fact_health_activity data to disk')
+    # push record_df to .csv, stop exports of individual tables that make it up
     records_df.to_csv('tmp/fact_health_activity.csv', index=False)
 
     # filter data from records_df
@@ -298,8 +300,8 @@ def parse_xml_file(**kwargs):
     # heart_rate_df = preprocess_exercise(heart_rate_df, 'heart_rate', metric='beats_per_min')
 
     # HKQuantityTypeIdentifierStepCount, HKQuantityTypeIdentifierBasalEnergyBurned, HKQuantityTypeIdentifierActiveEnergyBurned
-    steps_df = records_df.query("type == 'HKQuantityTypeIdentifierStepCount'").copy()
-    steps_df = preprocess_exercise(steps_df, 'steps', metric='steps')
+    # steps_df = records_df.query("type == 'HKQuantityTypeIdentifierStepCount'").copy()
+    # steps_df = preprocess_exercise(steps_df, 'steps', metric='steps')
 
     # energy_basal_df = records_df.query("type == 'HKQuantityTypeIdentifierBasalEnergyBurned'").copy()
     # energy_basal_df = preprocess_exercise(energy_basal_df, 'energy_basal', metric='energy')
@@ -454,31 +456,34 @@ def insert_fact_health_activity_data(**kwargs):
     file = 'tmp/fact_health_activity.csv'
     df = pd.read_csv(file)
     # TODO: map activity_id values from activity_types using activity_name column, and remove activity_name column
-    df['activity_id'] = activity_types['activity_name'].map(df.set_index('activity_name')['activity_id'])
-    df.drop('activity_name', axis=1, inplace=True)
+    df['activity_type_id'] = df['type'].map(activity_types.set_index('activity_name')['activity_type_id'])
+    df.drop('type', axis=1, inplace=True)
+
+    # fix apostrophe's in sourceName columns to avoid insert errors
+    df['sourceName'] = df['sourceName'].str.replace("'", "''")
 
     # add customer id to data
     customer_id = ti.xcom_pull(task_ids='pull_customer_id', key='customer_id')
     df['customer_id'] = customer_id
 
+    df['updated_at'] = pd.to_datetime('now')
+
     records = df.to_dict('records')
     
     for record in records:
         query = f"""INSERT INTO fact_health_activity 
-                    (activity_id, customer_id, activity_type_id, 
-                    start_date, source_name, type, unit, value,
+                    (customer_id, activity_type_id, 
+                    start_date, source_name, unit, value,
                     created_at, updated_at) 
                     VALUES (
-                        '{record['activity_id']}', 
                         '{record['customer_id']}', 
                         '{record['activity_type_id']}', 
-                        '{record['start_date']}',
-                        '{record['source_name']}',
-                        '{record['type']}',
+                        '{record['startDate']}',
+                        '{record['sourceName']}',
                         '{record['unit']}',
                         {record['value']},
-                        '{record['created_at']}',
-                        '{record['updated_at']}',
+                        '{record['creationDate']}',
+                        '{record['updated_at']}')
                 """
 
         cur.execute(query)
@@ -668,10 +673,10 @@ with DAG(
     # )
 
     # insert_fact_health_activity_data
-    insert_fact_health_activity_data_task = PythonOperator(
-        task_id = 'insert_fact_health_activity_data_task',
-        python_callable = insert_fact_health_activity_data
-    )
+    # insert_fact_health_activity_data = PythonOperator(
+    #     task_id = 'insert_fact_health_activity_data',
+    #     python_callable = insert_fact_health_activity_data
+    # )
 
     # insert_activity_summary_data_task = PythonOperator(
     #     task_id = 'insert_activity_summary_data_task',
@@ -687,11 +692,7 @@ with DAG(
         task_id = 'backup_csv_files',
         bash_command = '''
             mkdir -p /opt/airflow/output &&
-            cp -f /opt/airflow/tmp/cycling.csv /opt/airflow/output/cycling.csv &&
-            cp -f /opt/airflow/tmp/walking_running.csv /opt/airflow/output/walking_running.csv &&
-            cp -f /opt/airflow/tmp/heart_rate.csv /opt/airflow/output/heart_rate.csv &&
-            cp -f /opt/airflow/tmp/steps.csv /opt/airflow/output/steps.csv &&
-            cp -f /opt/airflow/tmp/energy_basal.csv /opt/airflow/output/energy_basal.csv
+            cp -f /opt/airflow/tmp/fact_health_activity.csv /opt/airflow/output/fact_health_activity.csv
             '''
     )
 
@@ -794,5 +795,5 @@ with DAG(
 
     create_table_dim_customer >> create_table_dim_activity_type >> create_table_fact_health_activity >> \
     checking_for_xml_file >> parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
-    insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_data_task >> \
+    insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_data >> \
     backup_csv_files >> delete_temp_csv_files
