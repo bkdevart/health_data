@@ -210,9 +210,9 @@ def parse_xml_file():
     })
 
     customer_info = pd.DataFrame({
-        'birthday': birthday,
-        'sex': sex,
-        'blood_type': blood_type
+        'birthday': [birthday],
+        'sex': [sex],
+        'blood_type': [blood_type]
     })
     customer_info.to_csv('tmp/customer.csv', index=False)
 
@@ -446,6 +446,12 @@ with DAG(
         python_callable = parse_xml_file
     )
 
+    create_table_customer = PostgresOperator(
+        task_id = 'create_table_customer',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'create_table_customer.sql'
+    )
+
     create_table_activity_summary = PostgresOperator(
         task_id = 'create_table_activity_summary',
         postgres_conn_id = 'postgres_health_db',
@@ -498,6 +504,7 @@ with DAG(
             cp -f /opt/airflow/tmp/heart_rate.csv /opt/airflow/output/heart_rate.csv &&
             cp -f /opt/airflow/tmp/steps.csv /opt/airflow/output/steps.csv &&
             cp -f /opt/airflow/tmp/energy_basal.csv /opt/airflow/output/energy_basal.csv
+            cp -f /opt/airflow/tmp/customer.csv /opt/airflow/output/customer.csv
             '''
     )
 
@@ -579,7 +586,7 @@ with DAG(
     )
 
     # combine_activity_exercise >> export_combined_activity_exercise_data >> create_table_combined_activity_exercise >> \
-    create_table_activity_summary >> create_table_exercise_time >> \
+    create_table_customer >> create_table_activity_summary >> create_table_exercise_time >> \
     create_table_cycling >> create_table_heartrate >> \
     create_table_walking_running >> create_table_combined_data >> \
     checking_for_xml_file >> parse_xml_file_task >> \
