@@ -461,7 +461,8 @@ def insert_fact_health_activity_data(**kwargs):
 
     # fix apostrophe's in sourceName columns to avoid insert errors
     df['sourceName'] = df['sourceName'].str.replace("'", "''")
-
+    # TODO: replace HKQuantityTypeIdentifier with null in activity_name
+    # df['HKQuantityTypeIdentifier'] = df['HKQuantityTypeIdentifier'].str.replace("HKQuantityTypeIdentifier", "")
     # add customer id to data
     customer_id = ti.xcom_pull(task_ids='pull_customer_id', key='customer_id')
     df['customer_id'] = customer_id
