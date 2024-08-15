@@ -284,31 +284,10 @@ def parse_xml_file(**kwargs):
     date_col = ['creationDate', 'startDate', 'endDate']
     records_df[date_col] = records_df[date_col].apply(pd.to_datetime)
 
-    # TODO: passing the records_df through XCOM?
+    # TODO: passing the records_df through XCOM? likely too large
     print('Writing fact_health_activity data to disk')
     # push record_df to .csv, stop exports of individual tables that make it up
     records_df.to_csv('tmp/fact_health_activity.csv', index=False)
-
-    # filter data from records_df
-    # cycling_df = records_df.query("type == 'HKQuantityTypeIdentifierDistanceCycling'").copy()
-    # cycling_df = preprocess_exercise(cycling_df, 'cycling', exercise=True)
-
-    # walking_running_df = records_df.query("type == 'HKQuantityTypeIdentifierDistanceWalkingRunning'").copy()
-    # walking_running_df = preprocess_exercise(walking_running_df, 'walking_running')
-
-    # heart_rate_df = records_df.query("type == 'HKQuantityTypeIdentifierHeartRate'").copy()
-    # heart_rate_df = preprocess_exercise(heart_rate_df, 'heart_rate', metric='beats_per_min')
-
-    # HKQuantityTypeIdentifierStepCount, HKQuantityTypeIdentifierBasalEnergyBurned, HKQuantityTypeIdentifierActiveEnergyBurned
-    # steps_df = records_df.query("type == 'HKQuantityTypeIdentifierStepCount'").copy()
-    # steps_df = preprocess_exercise(steps_df, 'steps', metric='steps')
-
-    # energy_basal_df = records_df.query("type == 'HKQuantityTypeIdentifierBasalEnergyBurned'").copy()
-    # energy_basal_df = preprocess_exercise(energy_basal_df, 'energy_basal', metric='energy')
-
-    # TODO: add back in once memory issue resolved
-    # energy_active_df = records_df.query("type == 'HKQuantityTypeIdentifierActiveEnergyBurned'").copy()
-    # energy_active_df = preprocess_exercise(energy_active_df, 'energy_active', metric='energy')
 
     # create activity data data frame
     print('Creating activity data...')
@@ -356,54 +335,6 @@ def parse_xml_file(**kwargs):
     activity_df.to_csv('tmp/activity_summary.csv', index=False)
     exercise_time.to_csv('tmp/exercise_time.csv', index=False)
 
-
-# def preprocess_exercise(df, filename, metric='miles', exercise=False):
-#     # clean up exercise data - may want to restore device later
-#     df.drop(['type', 'sourceName', 'unit',
-#              # 'device', 'sourceVersion'
-#              ], 
-#                     axis=1, 
-#                     inplace=True)
-#     df.rename(columns={'value': metric, 
-#                        'startDate': 'start_date',
-#                        'endDate': 'end_date',
-#                        'creationDate': 'creation_date'}, inplace=True)
-#     df[metric] = pd.to_numeric(df[metric])
-#     df['creation_date'] = df['creation_date'].dt.tz_convert('US/Arizona')
-#     df['start_date'] = df['start_date'].dt.tz_convert('US/Arizona')
-#     df['end_date'] = df['end_date'].dt.tz_convert('US/Arizona')
-#     df.sort_values(['creation_date'], inplace=True)
-#     df.reset_index(drop=True, inplace=True)
-    
-#     if exercise and metric=='miles':
-#         # calculate times, speed
-#         df['seconds'] = (df['end_date'] - df['start_date']).dt.total_seconds()
-#         df['avg_mph'] = df[metric] / (df['seconds'] / 3600)
-
-#     # export granular, focused data for analysis
-#     df.to_csv(f'tmp/{filename}.csv', index=False)
-
-#     if exercise and metric=='miles':
-#         # calculate aggregated speed - assumes miles for metric and exercise=True
-#         # export daily summaries for analysis
-#         df_date = df.groupby(df['start_date'].dt.date)[[metric, 'seconds']].sum().reset_index()
-#         df_date['avg_mph'] = df_date[metric] / (df_date['seconds'] / 3600)
-#     else:
-#         df_date = df.groupby(df['start_date'].dt.date)[[metric]].sum().reset_index()
-
-#     df_date.to_csv(f'tmp/daily_{filename}.csv', index=False)
-#     return df
-
-# def export_combined_data():
-#     conn = psycopg2.connect(
-#         host="postgres_health",
-#         database="health_db",
-#         user="health_db",
-#         password="health_db"
-#     )
-#     df =  pd.read_sql('SELECT * FROM combined_data', conn)
-#     df.to_csv('output/combined_data.csv', index=False)
-
 def insert_customer_data():
     conn = psycopg2.connect(
         host="postgres_health",
@@ -450,18 +381,15 @@ def insert_fact_health_activity_data(**kwargs):
     activity_types = pd.DataFrame(activity_types)
     # print(activity_types.head())
 
-    # activity_type_id = activity_types[activity_types['activity_name'] == 'HKQuantityTypeIdentifierDistanceCycling']
-    # activity_type_id = activity_type_id['activity_type_id'].values[0]
-
-    file = 'tmp/fact_health_activity.csv'
-    df = pd.read_csv(file)
-    # TODO: map activity_id values from activity_types using activity_name column, and remove activity_name column
+    # import fact_health_activity data
+    df = pd.read_csv('tmp/fact_health_activity.csv')
+    # map activity_id values from activity_types using activity_name column, and remove activity_name column
     df['activity_type_id'] = df['type'].map(activity_types.set_index('activity_name')['activity_type_id'])
     df.drop('type', axis=1, inplace=True)
 
-    # fix apostrophe's in sourceName columns to avoid insert errors
+    # fix apostrophes in sourceName columns to avoid SQL insert errors
     df['sourceName'] = df['sourceName'].str.replace("'", "''")
-    # TODO: replace HKQuantityTypeIdentifier with null in activity_name
+    # TODO: replace HKQuantityTypeIdentifier with null in activity_name (need to do in dim_activity_type too)
     # df['HKQuantityTypeIdentifier'] = df['HKQuantityTypeIdentifier'].str.replace("HKQuantityTypeIdentifier", "")
     # add customer id to data
     customer_id = ti.xcom_pull(task_ids='pull_customer_id', key='customer_id')
@@ -493,112 +421,6 @@ def insert_fact_health_activity_data(**kwargs):
 
     cur.close()
     conn.close()
-
-# def insert_cycling_data(**kwargs):
-#     conn = psycopg2.connect(
-#         host="postgres_health",
-#         database="health_db",
-#         user="health_db",
-#         password="health_db"
-#     )
-
-#     cur = conn.cursor()
-
-#     # pull activity ID for cycling activity and add to data
-#     ti = kwargs["ti"]
-#     activity_types = ti.xcom_pull(task_ids='insert_dim_activity_type_data', key='activity_types')
-#     activity_types = pd.DataFrame(activity_types)
-#     print(activity_types.head())
-#     activity_type_id = activity_types[activity_types['activity_name'] == 'HKQuantityTypeIdentifierDistanceCycling']
-#     activity_type_id = activity_type_id['activity_type_id'].values[0]
-
-#     file = 'tmp/' + CYCLING_FILENAME
-#     df = pd.read_csv(file, usecols=CYCLING_COLS)
-#     df['activity_type_id'] = activity_type_id
-
-#     # add customer id to data
-#     customer_id = ti.xcom_pull(task_ids='pull_customer_id', key='customer_id')
-#     df['customer_id'] = customer_id
-
-#     records = df.to_dict('records')
-    
-#     for record in records:
-#         query = f"""INSERT INTO cycling 
-#                     (start_date, miles, seconds, avg_mph, activity_type_id) 
-#                     VALUES (
-#                         '{record['start_date']}', 
-#                         '{record['miles']}', 
-#                         '{record['seconds']}', 
-#                         {record['avg_mph']},
-#                         '{record['activity_type_id']}')
-#                 """
-
-#         cur.execute(query)
-
-#     conn.commit()
-
-#     cur.close()
-#     conn.close()
-
-# def insert_heartrate_data():
-#     conn = psycopg2.connect(
-#         host="postgres_health",
-#         database="health_db",
-#         user="health_db",
-#         password="health_db"
-#     )
-
-#     cur = conn.cursor()
-
-#     for file in glob.glob('tmp/' + HEARTRATE_FILENAME):
-#         df = pd.read_csv(file, usecols=HEARTRATE_COLS)
-
-#         records = df.to_dict('records')
-        
-#         for record in records:
-#             query = f"""INSERT INTO heartrate 
-#                         (start_date, beats_per_min) 
-#                         VALUES (
-#                             '{record['start_date']}', 
-#                             '{record['beats_per_min']}')
-#                     """
-
-#             cur.execute(query)
-
-#     conn.commit()
-
-#     cur.close()
-#     conn.close()
-
-# def insert_walking_running_data():
-#     conn = psycopg2.connect(
-#         host="postgres_health",
-#         database="health_db",
-#         user="health_db",
-#         password="health_db"
-#     )
-
-#     cur = conn.cursor()
-
-#     file = ('tmp/' + WALKING_RUNNING_FILENAME)
-#     df = pd.read_csv(file, usecols=WALKING_RUNNING_COLS)
-
-#     records = df.to_dict('records')
-    
-#     for record in records:
-#         query = f"""INSERT INTO walking_running 
-#                     (start_date, miles) 
-#                     VALUES (
-#                         '{record['start_date']}', 
-#                         '{record['miles']}')
-#                 """
-
-#         cur.execute(query)
-
-#     conn.commit()
-
-#     cur.close()
-#     conn.close()
 
 with DAG(
     dag_id = 'health_db_pipeline',
@@ -633,17 +455,11 @@ with DAG(
         sql = 'create_table_fact_health_activity.sql'
     )
 
-    # create_table_activity_summary = PostgresOperator(
-    #     task_id = 'create_table_activity_summary',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'create_table_activity_summary.sql'
-    # )
-
-    # create_table_exercise_time = PostgresOperator(
-    #     task_id = 'create_table_exercise_time',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'create_table_exercise_time.sql'
-    # )
+    create_table_fact_daily_health_activity = PostgresOperator(
+        task_id = 'create_table_fact_daily_health_activity',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'create_table_fact_daily_health_activity.sql'
+    )
 
     checking_for_xml_file = FileSensor(
         task_id = 'checking_for_xml_file',
@@ -658,36 +474,6 @@ with DAG(
         poke_interval = 10,
         timeout = 60 * 10
     )
-    
-    # checking_for_activity_summary_file = FileSensor(
-    #     task_id = 'checking_for_activity_summary_file',
-    #     filepath = 'tmp/activity_summary.csv',
-    #     poke_interval = 10,
-    #     timeout = 60 * 10
-    # )
-
-    # checking_for_excercise_time_file = FileSensor(
-    #     task_id = 'checking_for_excercise_time_file',
-    #     filepath = 'tmp/exercise_time.csv',
-    #     poke_interval = 10,
-    #     timeout = 60 * 10
-    # )
-
-    # insert_fact_health_activity_data
-    # insert_fact_health_activity_data = PythonOperator(
-    #     task_id = 'insert_fact_health_activity_data',
-    #     python_callable = insert_fact_health_activity_data
-    # )
-
-    # insert_activity_summary_data_task = PythonOperator(
-    #     task_id = 'insert_activity_summary_data_task',
-    #     python_callable = insert_activity_summary_data
-    # )
-
-    # insert_excercise_time_data_task = PythonOperator(
-    #     task_id = 'insert_excercise_time_data_task',
-    #     python_callable = insert_exercise_time_data
-    # )
 
     backup_csv_files = BashOperator(
         task_id = 'backup_csv_files',
@@ -701,51 +487,6 @@ with DAG(
         task_id = 'delete_temp_csv_files',
         bash_command = 'rm -f /opt/airflow/tmp/*.csv'
     )
-    
-    # create_table_cycling = PostgresOperator(
-    #     task_id = 'create_table_cycling',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'create_table_cycling.sql'
-    # )
-
-    # create_table_heartrate = PostgresOperator(
-    #     task_id = 'create_table_heartrate',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'create_table_heartrate.sql'
-    # )
-
-    # create_table_walking_running = PostgresOperator(
-    #     task_id = 'create_table_walking_running',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'create_table_walking_running.sql'
-    # )
-
-    # create_table_combined_data = PostgresOperator(
-    #     task_id = 'create_table_combined_data',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'create_table_combined_data.sql'
-    # )
-
-    # checking_for_cycling_file = FileSensor(
-    #     task_id = 'checking_for_cycling_file',
-    #     filepath = 'tmp/' + CYCLING_FILENAME,
-    #     poke_interval = 10,
-    #     timeout = 60 * 10
-    # )
-
-    # checking_for_heartrate_file = FileSensor(
-    #     task_id = 'checking_for_heartrate_file',
-    #     filepath = 'tmp/' + HEARTRATE_FILENAME,
-    #     poke_interval = 10,
-    #     timeout = 60 * 10
-    # )
-
-    # checking_for_walking_running_file = FileSensor(
-    #     task_id = 'checking_for_walking_running_file',
-    #     filepath = 'tmp/' + WALKING_RUNNING_FILENAME,
-    #     poke_interval = 10,
-    #     timeout = 60 * 10
-    # )
 
     pull_customer_id = PythonOperator(
         task_id = 'pull_customer_id',
@@ -767,34 +508,13 @@ with DAG(
         python_callable = insert_fact_health_activity_data
     )
 
-    # insert_cycling_data = PythonOperator(
-    #     task_id = 'insert_cycling_data',
-    #     python_callable = insert_cycling_data
-    # )
+    insert_table_fact_daily_health_activity = PostgresOperator(
+        task_id = 'insert_table_fact_daily_health_activity',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'insert_table_fact_daily_health_activity.sql'
+    )
 
-    # insert_heartrate_data = PythonOperator(
-    #     task_id = 'insert_heartrate_data',
-    #     python_callable = insert_heartrate_data
-    # )
-
-    # insert_walking_running_data = PythonOperator(
-    #     task_id = 'insert_walking_running_data',
-    #     python_callable = insert_walking_running_data
-    # )
-
-    # combine tables using SQL and export as a csv file
-    # create_table_combined = PostgresOperator(
-    #     task_id = 'combine_tables',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'combine_tables.sql'
-    # )
-
-    # export_combined_data = PythonOperator(
-    #     task_id = 'export_combined_data',
-    #     python_callable = export_combined_data
-    # )
-
-    create_table_dim_customer >> create_table_dim_activity_type >> create_table_fact_health_activity >> \
+    create_table_dim_customer >> create_table_dim_activity_type >> create_table_fact_health_activity >> create_table_fact_daily_health_activity >>\
     checking_for_xml_file >> parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
     insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_data >> \
-    backup_csv_files >> delete_temp_csv_files
+    backup_csv_files >> delete_temp_csv_files >> insert_table_fact_daily_health_activity
