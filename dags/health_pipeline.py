@@ -261,11 +261,11 @@ def parse_xml_file(**kwargs):
     # create records dataframe
     records_df = pd.DataFrame({
         'type': type,
-        'sourceName': sourceName,
+        'source_name': sourceName,
         'unit': unit,
-        'creationDate': creationDate,
-        'startDate': startDate,
-        'endDate': endDate,
+        'creation_date': creationDate,
+        'start_date': startDate,
+        'end_date': endDate,
         'value': value
     })
 
@@ -281,7 +281,7 @@ def parse_xml_file(**kwargs):
     del type, sourceName, unit, creationDate, startDate, endDate, value
 
     # Convert datetime format
-    date_col = ['creationDate', 'startDate', 'endDate']
+    date_col = ['creation_date', 'start_date', 'end_date']
     records_df[date_col] = records_df[date_col].apply(pd.to_datetime)
 
     # TODO: passing the records_df through XCOM? likely too large
@@ -382,37 +382,44 @@ def insert_fact_health_activity_data(**kwargs):
     # print(activity_types.head())
 
     # import fact_health_activity data
-    df = pd.read_csv('tmp/fact_health_activity.csv')
+    date_col = ['creation_date', 'start_date', 'end_date']
+    # records_df[date_col] = records_df[date_col].apply(pd.to_datetime)
+    print('reading fact_health_activity.csv')
+    df = pd.read_csv('tmp/fact_health_activity.csv', parse_dates=date_col)
     # map activity_id values from activity_types using activity_name column, and remove activity_name column
     df['activity_type_id'] = df['type'].map(activity_types.set_index('activity_name')['activity_type_id'])
     df.drop('type', axis=1, inplace=True)
 
     # fix apostrophes in sourceName columns to avoid SQL insert errors
-    df['sourceName'] = df['sourceName'].str.replace("'", "''")
-    # TODO: replace HKQuantityTypeIdentifier with null in activity_name (need to do in dim_activity_type too)
+    df['source_name'] = df['source_name'].str.replace("'", "''")
+    # TODO: replace HKQuantityTypeIdentifier prefix with null in activity_name (need to do in dim_activity_type too)
     # df['HKQuantityTypeIdentifier'] = df['HKQuantityTypeIdentifier'].str.replace("HKQuantityTypeIdentifier", "")
     # add customer id to data
     customer_id = ti.xcom_pull(task_ids='pull_customer_id', key='customer_id')
     df['customer_id'] = customer_id
-
     df['updated_at'] = pd.to_datetime('now')
+    
+    df['duration_seconds'] = (df['end_date'] - df['start_date']).dt.total_seconds()
 
     records = df.to_dict('records')
-    
+    print('Inserting into fact_health_activity table')
     for record in records:
         query = f"""INSERT INTO fact_health_activity 
                     (customer_id, activity_type_id, 
-                    start_date, source_name, unit, value,
-                    created_at, updated_at) 
+                    source_name, unit, value, duration_seconds,
+                    start_date, creation_date, end_date, updated_at) 
                     VALUES (
                         '{record['customer_id']}', 
                         '{record['activity_type_id']}', 
-                        '{record['startDate']}',
-                        '{record['sourceName']}',
+                        '{record['source_name']}',
                         '{record['unit']}',
                         {record['value']},
-                        '{record['creationDate']}',
-                        '{record['updated_at']}')
+                        {record['duration_seconds']},
+                        '{record['start_date']}',
+                        '{record['creation_date']}',
+                        '{record['end_date']}',
+                        '{record['updated_at']}'
+                        )
                 """
 
         cur.execute(query)
@@ -514,7 +521,19 @@ with DAG(
         sql = 'insert_table_fact_daily_health_activity.sql'
     )
 
+    create_fact_daily_health_activity_summary = PostgresOperator(
+        task_id = 'create_fact_daily_health_activity_summary',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'create_table_fact_daily_health_activity_summary.sql'
+    )
+
+    insert_fact_daily_health_activity_summary = PostgresOperator(
+        task_id = 'insert_fact_daily_health_activity_summary',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'insert_table_fact_daily_health_activity_summary.sql'
+    )
+
     create_table_dim_customer >> create_table_dim_activity_type >> create_table_fact_health_activity >> create_table_fact_daily_health_activity >>\
-    checking_for_xml_file >> parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
+    create_fact_daily_health_activity_summary >> checking_for_xml_file >> parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
     insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_data >> \
-    backup_csv_files >> delete_temp_csv_files >> insert_table_fact_daily_health_activity
+    backup_csv_files >> delete_temp_csv_files >> insert_table_fact_daily_health_activity >> insert_fact_daily_health_activity_summary

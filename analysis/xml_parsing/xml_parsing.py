@@ -28,7 +28,7 @@ for event, elem in ET.iterparse(XML_DATA):
         birthday = elem.attrib['HKCharacteristicTypeIdentifierDateOfBirth']
         sex = elem.attrib['HKCharacteristicTypeIdentifierBiologicalSex']
         blood_type = elem.attrib['HKCharacteristicTypeIdentifierBloodType']
-    if elem.tag == "Record":
+    if elem.tag == "Record" and elem.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling':
         #    if elem.attrib['type'] == 'HKCharacteristicTypeIdentifierDateOfBirth':
         # pull out columns of interest
         # records.append(elem.attrib)
