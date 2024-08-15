@@ -286,7 +286,7 @@ def parse_xml_file(**kwargs):
 
     # TODO: passing the records_df through XCOM? likely too large
     print('Writing fact_health_activity data to disk')
-    # push record_df to .csv, stop exports of individual tables that make it up
+    # push record_df to .csv
     records_df.to_csv('tmp/fact_health_activity.csv', index=False)
 
     # create activity data data frame
