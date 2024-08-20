@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS fact_daily_health_activity_summary (
+CREATE TABLE IF NOT EXISTS fact_health_activity_summary (
     daily_activity_summary_id SERIAL PRIMARY KEY,
     customer_id UUID,
     start_date DATE,

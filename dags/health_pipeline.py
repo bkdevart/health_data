@@ -35,8 +35,19 @@ def extract_daily_summary_to_csv():
         user="health_db",
         password="health_db"
     )
-    df = pd.read_sql('SELECT * FROM fact_daily_health_activity_summary;', conn)
-    df.to_csv('tmp/fact_daily_health_activity_summary.csv', index=False)
+    df = pd.read_sql('SELECT * FROM fact_health_activity_summary;', conn)
+    df.to_csv('tmp/fact_health_activity_summary.csv', index=False)
+    conn.close()
+
+def extract_activity_detail_to_csv():
+    conn = psycopg2.connect(
+        host="postgres_health",
+        database="health_db",
+        user="health_db",
+        password="health_db"
+    )
+    df = pd.read_sql("SELECT * FROM fact_health_activity_detail WHERE activity_name != 'HKQuantityTypeIdentifierHeartRate';", conn)
+    df.to_csv('tmp/fact_health_activity_detail.csv', index=False)
     conn.close()
 
 def pull_customer_id(**kwargs):
@@ -296,9 +307,9 @@ def parse_xml_file(**kwargs):
     records_df[date_col] = records_df[date_col].apply(pd.to_datetime)
 
     # TODO: passing the records_df through XCOM? likely too large
-    print('Writing fact_health_activity data to disk')
+    print('Writing fact_health_activity_base data to disk')
     # push record_df to .csv
-    records_df.to_csv('tmp/fact_health_activity.csv', index=False)
+    records_df.to_csv('tmp/fact_health_activity_base.csv', index=False)
 
     # create activity data data frame
     print('Creating activity data...')
@@ -376,7 +387,7 @@ def insert_customer_data():
     cur.close()
     conn.close()
 
-def insert_fact_health_activity_data(**kwargs):
+def insert_fact_health_activity_base(**kwargs):
     conn = psycopg2.connect(
         host="postgres_health",
         database="health_db",
@@ -396,7 +407,7 @@ def insert_fact_health_activity_data(**kwargs):
     date_col = ['creation_date', 'start_date', 'end_date']
     # records_df[date_col] = records_df[date_col].apply(pd.to_datetime)
     print('reading fact_health_activity.csv')
-    df = pd.read_csv('tmp/fact_health_activity.csv', parse_dates=date_col)
+    df = pd.read_csv('tmp/fact_health_activity_base.csv', parse_dates=date_col)
     # map activity_id values from activity_types using activity_name column, and remove activity_name column
     df['activity_type_id'] = df['type'].map(activity_types.set_index('activity_name')['activity_type_id'])
     df.drop('type', axis=1, inplace=True)
@@ -415,7 +426,7 @@ def insert_fact_health_activity_data(**kwargs):
     records = df.to_dict('records')
     print('Inserting into fact_health_activity table')
     for record in records:
-        query = f"""INSERT INTO fact_health_activity 
+        query = f"""INSERT INTO fact_health_activity_base 
                     (customer_id, activity_type_id, 
                     source_name, unit, value, duration_seconds,
                     start_date, creation_date, end_date, updated_at) 
@@ -467,16 +478,22 @@ with DAG(
         sql = 'create_table_dim_activity_type.sql'
     )
 
-    create_table_fact_health_activity = PostgresOperator(
-        task_id = 'create_table_fact_health_activity',
+    create_fact_health_activity_base = PostgresOperator(
+        task_id = 'create_fact_health_activity_base',
         postgres_conn_id = 'postgres_health_db',
-        sql = 'create_table_fact_health_activity.sql'
+        sql = 'create_fact_health_activity_base.sql'
     )
 
-    create_table_fact_daily_health_activity = PostgresOperator(
-        task_id = 'create_table_fact_daily_health_activity',
+    create_fact_health_activity_daily = PostgresOperator(
+        task_id = 'create_fact_health_activity_daily',
         postgres_conn_id = 'postgres_health_db',
-        sql = 'create_table_fact_daily_health_activity.sql'
+        sql = 'create_fact_health_activity_daily.sql'
+    )
+
+    create_fact_health_activity_detail = PostgresOperator(
+        task_id = 'create_fact_health_activity_detail',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'create_fact_health_activity_detail.sql'
     )
 
     checking_for_xml_file = FileSensor(
@@ -497,7 +514,8 @@ with DAG(
         task_id = 'backup_csv_files',
         bash_command = '''
             mkdir -p /opt/airflow/output &&
-            cp -f /opt/airflow/tmp/fact_daily_health_activity_summary.csv /opt/airflow/output/fact_daily_health_activity_summary.csv
+            cp -f /opt/airflow/tmp/fact_health_activity_summary.csv /opt/airflow/output/fact_health_activity_summary.csv
+            cp -f /opt/airflow/tmp/fact_health_activity_detail.csv /opt/airflow/output/fact_health_activity_detail.csv
             '''
     )
 
@@ -521,27 +539,33 @@ with DAG(
         python_callable = insert_dim_activity_type_data
     )
 
-    insert_fact_health_activity_data = PythonOperator(
-        task_id = 'insert_fact_health_activity_data',
-        python_callable = insert_fact_health_activity_data
+    insert_fact_health_activity_base = PythonOperator(
+        task_id = 'insert_fact_health_activity_base',
+        python_callable = insert_fact_health_activity_base
     )
 
-    insert_table_fact_daily_health_activity = PostgresOperator(
-        task_id = 'insert_table_fact_daily_health_activity',
+    insert_fact_health_activity_daily = PostgresOperator(
+        task_id = 'insert_fact_health_activity_daily',
         postgres_conn_id = 'postgres_health_db',
-        sql = 'insert_table_fact_daily_health_activity.sql'
+        sql = 'insert_fact_health_activity_daily.sql'
     )
 
-    create_fact_daily_health_activity_summary = PostgresOperator(
-        task_id = 'create_fact_daily_health_activity_summary',
+    create_fact_health_activity_summary = PostgresOperator(
+        task_id = 'create_fact_health_activity_summary',
         postgres_conn_id = 'postgres_health_db',
-        sql = 'create_table_fact_daily_health_activity_summary.sql'
+        sql = 'create_fact_health_activity_summary.sql'
     )
 
-    insert_fact_daily_health_activity_summary = PostgresOperator(
-        task_id = 'insert_fact_daily_health_activity_summary',
+    insert_fact_health_activity_summary = PostgresOperator(
+        task_id = 'insert_fact_health_activity_summary',
         postgres_conn_id = 'postgres_health_db',
-        sql = 'insert_table_fact_daily_health_activity_summary.sql'
+        sql = 'insert_fact_health_activity_summary.sql'
+    )
+
+    insert_fact_health_activity_detail = PostgresOperator(
+        task_id = 'insert_fact_health_activity_detail',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'insert_fact_health_activity_detail.sql'
     )
 
     extract_daily_summary_to_csv = PythonOperator(
@@ -549,8 +573,14 @@ with DAG(
         python_callable = extract_daily_summary_to_csv
     )
 
-    create_table_dim_customer >> create_table_dim_activity_type >> create_table_fact_health_activity >> create_table_fact_daily_health_activity >>\
-    create_fact_daily_health_activity_summary >> checking_for_xml_file >> parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
-    insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_data >> \
-    insert_table_fact_daily_health_activity >> insert_fact_daily_health_activity_summary >> \
-    extract_daily_summary_to_csv >> backup_csv_files >> delete_temp_csv_files
+    extract_activity_detail_to_csv = PythonOperator(
+        task_id = 'extract_activity_detail_to_csv',
+        python_callable = extract_activity_detail_to_csv
+    )
+
+    create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >> create_fact_health_activity_daily >>\
+    create_fact_health_activity_summary >> checking_for_xml_file >> parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
+    insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
+    insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> \
+    create_fact_health_activity_detail >> insert_fact_health_activity_detail >> \
+    extract_daily_summary_to_csv >> extract_activity_detail_to_csv >> backup_csv_files >> delete_temp_csv_files

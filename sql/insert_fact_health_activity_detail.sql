@@ -1,13 +1,4 @@
-CREATE TABLE fact_daily_health_activity_all (
-    daily_activity_all_id SERIAL PRIMARY KEY,
-    customer_id UUID,
-    start_date DATE,
-    activity_name VARCHAR,
-    value FLOAT,
-    FOREIGN KEY (customer_id) REFERENCES dim_customer (customer_id)
-    );
-
-INSERT INTO fact_daily_health_activity_all
+INSERT INTO fact_health_activity_detail
     (customer_id,
     start_date,
     activity_name,
@@ -18,7 +9,7 @@ SELECT
     activity_name,
     value
 FROM 
-    fact_health_activity
+    fact_health_activity_base
 LEFT JOIN 
     dim_activity_type USING (activity_type_id)
 WHERE 
