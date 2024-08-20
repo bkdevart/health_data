@@ -1,9 +1,9 @@
 # from datetime import datetime, timedelta
 import pandas as pd
-import numpy as np
+# import numpy as np
 import psycopg2
-import glob
-import json
+# import glob
+# import json
 import xml.etree.ElementTree as ET
 
 from airflow import DAG
@@ -20,13 +20,6 @@ from airflow.sensors.filesystem import FileSensor
 default_args = {
    'owner': 'admin'
 }
-
-# CYCLING_FILENAME = 'daily_cycling.csv'
-# HEARTRATE_FILENAME = 'daily_heart_rate.csv'
-# WALKING_RUNNING_FILENAME = 'daily_walking_running.csv'
-# CYCLING_COLS = ['start_date', 'miles', 'seconds', 'avg_mph']
-# HEARTRATE_COLS = ['start_date', 'beats_per_min']
-# WALKING_RUNNING_COLS = ['start_date', 'miles']
 
 def extract_daily_summary_to_csv():
     conn = psycopg2.connect(
@@ -505,7 +498,7 @@ with DAG(
 
     checking_for_fact_health_activity_file = FileSensor(
         task_id = 'checking_for_fact_health_activity_file',
-        filepath = 'tmp/fact_health_activity.csv',
+        filepath = 'tmp/fact_health_activity_base.csv',
         poke_interval = 10,
         timeout = 60 * 10
     )
@@ -579,8 +572,8 @@ with DAG(
     )
 
     create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >> create_fact_health_activity_daily >>\
-    create_fact_health_activity_summary >> checking_for_xml_file >> parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
+    create_fact_health_activity_summary >> create_fact_health_activity_detail >> checking_for_xml_file >> \
+    parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
     insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
-    insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> \
-    create_fact_health_activity_detail >> insert_fact_health_activity_detail >> \
+    insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> insert_fact_health_activity_detail >> \
     extract_daily_summary_to_csv >> extract_activity_detail_to_csv >> backup_csv_files >> delete_temp_csv_files
