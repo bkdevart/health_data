@@ -39,7 +39,9 @@ def extract_activity_detail_to_csv():
         user="health_db",
         password="health_db"
     )
-    df = pd.read_sql("SELECT * FROM fact_health_activity_detail WHERE activity_name != 'HKQuantityTypeIdentifierHeartRate';", conn)
+    df = pd.read_sql("""SELECT * FROM fact_health_activity_detail 
+                     WHERE activity_name != 'HKQuantityTypeIdentifierHeartRate' 
+                        OR activity_name != 'HKQuantityTypeIdentifierBasalEnergyBurned';""", conn)
     df.to_csv('tmp/fact_health_activity_detail.csv', index=False)
     conn.close()
 

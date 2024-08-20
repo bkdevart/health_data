@@ -2,12 +2,14 @@ INSERT INTO fact_health_activity_detail
     (customer_id,
     start_date,
     activity_name,
-    value)
+    value,
+    duration_seconds)
 SELECT 
     customer_id,
     start_date,
     activity_name,
-    value
+    value,
+    duration_seconds
 FROM 
     fact_health_activity_base
 LEFT JOIN 
