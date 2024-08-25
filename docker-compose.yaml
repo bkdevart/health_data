@@ -110,6 +110,8 @@ services:
     image: postgres:13
     ports:
       - 5433:5432
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: health_db
       POSTGRES_PASSWORD: health_db

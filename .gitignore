@@ -5,6 +5,7 @@ __pycache__
 logs
 output
 tmp
+Postgres-data
 
 # files
 .DS_Store

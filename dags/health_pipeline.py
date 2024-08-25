@@ -8,10 +8,11 @@ import xml.etree.ElementTree as ET
 
 from airflow import DAG
 from airflow.utils.dates import days_ago
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
 from airflow.operators.bash import BashOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.sensors.filesystem import FileSensor
+from airflow.models import Variable
 # from airflow.models.connection import Connection
 # from airflow.operators.dummy_operator import DummyOperator
 # from airflow.operators.python_operator import BranchPythonOperator
@@ -55,7 +56,17 @@ def pull_customer_id(**kwargs):
         password="health_db"
     )
 
-    df = pd.read_sql('SELECT customer_id FROM dim_customer;', conn)
+    # pull customer_info dictionary, then modify query below to match
+    customer_info = ti.xcom_pull(task_ids='parse_xml_file_task', key='customer_info')
+    sql = f"""
+            SELECT customer_id
+            FROM dim_customer
+            WHERE birthday='{customer_info["birthday"][0]}'
+                AND sex='{customer_info["sex"][0]}'
+                AND blood_type='{customer_info["blood_type"][0]}';
+            """
+    df = pd.read_sql(sql, conn)
+    # df = pd.read_sql('SELECT customer_id FROM dim_customer;', conn)
     customer_id = df['customer_id'].values[0]
     ti.xcom_push('customer_id', customer_id)
 
@@ -176,9 +187,39 @@ def insert_exercise_time_data():
 
     cur.close()
     conn.close()
+
+def check_customer_id(**kwargs):
+    ti = kwargs["ti"]
+    customer_info = ti.xcom_pull(task_ids='parse_xml_file_task', key='customer_info')
+    
+    conn = psycopg2.connect(
+        host="postgres_health",
+        database="health_db",
+        user="health_db",
+        password="health_db"
+    )
+
+    sql = f"""
+            SELECT customer_id
+            FROM dim_customer
+            WHERE birthday='{customer_info["birthday"][0]}'
+                AND sex='{customer_info["sex"][0]}'
+                AND blood_type='{customer_info["blood_type"][0]}';
+            """
+
+    df = pd.read_sql(sql, conn)
+    
+    conn.close()
+
+    # if there is no matching customer, create one, otherwise get ID
+    if len(df) != 1:
+        return 'insert_customer_data'
+    else:
+        return 'delete_temp_csv_files'
     
 def parse_xml_file(**kwargs):
     XML_DATA = "tmp/export.xml"
+    ti = kwargs["ti"]
 
     # general data fields (explore other sections of xml later)
     # TODO: restore sourceVersion, device data by checking for null before adding
@@ -223,7 +264,6 @@ def parse_xml_file(**kwargs):
                     #   'HKQuantityTypeIdentifierActiveEnergyBurned',
                       ]
     # push activity_types to XCOM
-    ti = kwargs["ti"]
     ti.xcom_push('activity_types', activity_types)
 
     print('Starting to read XML into lists')
@@ -286,13 +326,13 @@ def parse_xml_file(**kwargs):
         'value': value
     })
 
-    # TODO: move this to XCOM
-    customer_info = pd.DataFrame({
+    # move customer_info to XCOM
+    customer_info = {
         'birthday': [birthday],
         'sex': [sex],
         'blood_type': [blood_type]
-    })
-    customer_info.to_csv('tmp/customer.csv', index=False)
+    }
+    ti.xcom_push('customer_info', customer_info)
 
     # del individual lists here to save memory
     del type, sourceName, unit, creationDate, startDate, endDate, value
@@ -352,7 +392,7 @@ def parse_xml_file(**kwargs):
     activity_df.to_csv('tmp/activity_summary.csv', index=False)
     exercise_time.to_csv('tmp/exercise_time.csv', index=False)
 
-def insert_customer_data():
+def insert_customer_data(**kwargs):
     conn = psycopg2.connect(
         host="postgres_health",
         database="health_db",
@@ -362,21 +402,18 @@ def insert_customer_data():
 
     cur = conn.cursor()
 
-    df = pd.read_csv('tmp/customer.csv')
+    ti = kwargs["ti"]
+    customer_info = ti.xcom_pull(task_ids='parse_xml_file_task', key='customer_info')
 
-    records = df.to_dict('records')
-    
-    for record in records:
-        query = f"""INSERT INTO dim_customer 
-                    (birthday, sex, blood_type) 
-                    VALUES (
-                        '{record['birthday']}', 
-                        '{record['sex']}', 
-                        '{record['blood_type']}')
-                """
-
-        cur.execute(query)
-
+    query = f"""INSERT INTO dim_customer 
+                (birthday, sex, blood_type) 
+                VALUES (
+                    '{customer_info["birthday"][0]}', 
+                    '{customer_info["sex"][0]}', 
+                    '{customer_info["blood_type"][0]}')
+            """
+    print(query)
+    cur.execute(query)
     conn.commit()
 
     cur.close()
@@ -519,6 +556,11 @@ with DAG(
         bash_command = 'rm -f /opt/airflow/tmp/*.csv'
     )
 
+    check_customer_id = BranchPythonOperator(
+        task_id = 'check_customer_id',
+        python_callable = check_customer_id
+    )
+
     pull_customer_id = PythonOperator(
         task_id = 'pull_customer_id',
         python_callable = pull_customer_id
@@ -576,6 +618,6 @@ with DAG(
     create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >> create_fact_health_activity_daily >>\
     create_fact_health_activity_summary >> create_fact_health_activity_detail >> checking_for_xml_file >> \
     parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
-    insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
+    check_customer_id >> [insert_customer_data] >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
     insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> insert_fact_health_activity_detail >> \
     extract_daily_summary_to_csv >> extract_activity_detail_to_csv >> backup_csv_files >> delete_temp_csv_files
