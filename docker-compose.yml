@@ -199,7 +199,6 @@ services:
       start_period: 5s
     restart: always
 
-  # TODO: may need to rename/configure (redis used by superset)
   redis-airflow:
     # Redis is limited to 7.2-bookworm due to licencing change
     # https://redis.io/blog/redis-adopts-dual-source-available-licensing/
