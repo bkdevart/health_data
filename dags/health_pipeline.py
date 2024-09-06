@@ -2,6 +2,7 @@
 import pandas as pd
 # import numpy as np
 import psycopg2
+from sqlalchemy import create_engine
 # import glob
 # import json
 import xml.etree.ElementTree as ET
@@ -34,17 +35,25 @@ def extract_daily_summary_to_csv():
     conn.close()
 
 def extract_activity_detail_to_csv():
-    conn = psycopg2.connect(
-        host="postgres_health",
-        database="health_db",
-        user="health_db",
-        password="health_db"
-    )
+    engine = create_engine('postgresql+psycopg2://health_db:health_db@postgres_health/health_db')
+    # conn = psycopg2.connect(
+    #     host="postgres_health",
+    #     database="health_db",
+    #     user="health_db",
+    #     password="health_db"
+    # )
     df = pd.read_sql("""SELECT * FROM fact_health_activity_detail 
                      WHERE activity_name != 'HKQuantityTypeIdentifierHeartRate' 
-                        OR activity_name != 'HKQuantityTypeIdentifierBasalEnergyBurned';""", conn)
-    df.to_csv('tmp/fact_health_activity_detail.csv', index=False)
-    conn.close()
+                        OR activity_name != 'HKQuantityTypeIdentifierBasalEnergyBurned';""", engine)
+    # TODO: implement more memory efficient way of writing file to avoid zombie jobs
+    chunksize = 10000  # Number of rows per chunk
+
+    with open('tmp/fact_health_activity_detail.csv', 'w') as f:
+        for chunk in range(0, len(df), chunksize):
+            df[chunk:chunk + chunksize].to_csv(f, header=(chunk == 0), index=False)
+
+    # df.to_csv('tmp/fact_health_activity_detail.csv', index=False)
+    # conn.close()
 
 def pull_customer_id(**kwargs):
     ti = kwargs["ti"]
@@ -77,6 +86,9 @@ def insert_dim_activity_type_data(**kwargs):
         user="health_db",
         password="health_db"
     )
+    # TODO: experiment to see if pandas can be used to push df data to db quicker
+    engine = create_engine('postgresql+psycopg2://health_db:health_db@postgres_health/health_db')
+
     cur = conn.cursor()
 
     # read from XCOM list of activity types
@@ -84,19 +96,71 @@ def insert_dim_activity_type_data(**kwargs):
     activity_types = ti.xcom_pull(task_ids='parse_xml_file_task', key='activity_types')
     df = pd.DataFrame({'activity_name': activity_types})
 
-    records = df.to_dict('records')
-    
-    for record in records:
-        query = f"""INSERT INTO dim_activity_type 
-                    (activity_name) 
-                    VALUES (
-                        '{record['activity_name']}'
-                        )
-                """
+    # TODO: check table to see if just initialized
+    sql = f"""
+            SELECT *
+            FROM dim_activity_type;
+            """
+    dim_activity_type = pd.read_sql(sql, conn)
+    dim_activity_type_empty = len(dim_activity_type) == 0
 
-        cur.execute(query)
-
-    conn.commit()
+    # find new activities only
+    # make a list out of activity_name column to convert to SQL text
+    activity_name_list = df['activity_name'].tolist()
+    activity_name_string = ', '.join([f"'{activity}'" for activity in activity_name_list])
+    # check to see if any unique activities are in new data, and add them if they are
+    sql = f"""
+            SELECT activity_type_id, activity_name
+            FROM dim_activity_type
+            WHERE activity_name NOT IN ({activity_name_string});
+            """
+    new_activities = pd.read_sql(sql, conn)
+    print(sql)
+    print(f'new_activities length: {len(new_activities)}')
+    print(new_activities.head())
+    # TODO: revisit this logic (may need 3 scenarios? focus only on what dim_activity_type needs)
+    """
+    Scenario 1: first run, new database: no activities
+    Scenario 2: 2nd run, same database: has activities, no new activities
+    Scenario 3: 2nd run, same database: has activities, new activities to add
+    """
+    if dim_activity_type_empty:
+        # push all data (initial setup)
+        records = df.to_dict('records')
+        for record in records:
+            query = f"""INSERT INTO dim_activity_type 
+                        (activity_name) 
+                        VALUES (
+                            '{record['activity_name']}'
+                            )
+                    """
+            cur.execute(query)
+        conn.commit()
+        # TODO: doesn't work without SQLalchemy - implement if simpler/faster/etc
+        # df.to_sql('dim_activity_type', 
+        #             engine, 
+        #             if_exists='append', 
+        #             index=False)
+    elif len(new_activities) != 0:
+        # append new activity
+        # records = new_activities.to_dict('records')
+        # for record in records:
+        #     query = f"""INSERT INTO dim_activity_type 
+        #                 (activity_name) 
+        #                 VALUES (
+        #                     '{record['activity_name']}'
+        #                     )
+        #             """
+        #     cur.execute(query)
+        # conn.commit()
+        # TODO: doesn't work without SQLalchemy - implement if simpler/faster/etc
+        new_activities.to_sql('dim_activity_type', 
+                                engine, 
+                                if_exists='append', 
+                                index=False)
+    # else:
+    #     # may not need else
+    #     pass
 
     # select from the table to get db-assigned ids and push to XCOM
     df = pd.read_sql('SELECT * FROM dim_activity_type;', conn)
@@ -107,7 +171,6 @@ def insert_dim_activity_type_data(**kwargs):
     cur.close()
     conn.close()
     
-
 def insert_activity_summary_data(**kwargs):
     conn = psycopg2.connect(
         host="postgres_health",
@@ -212,9 +275,15 @@ def check_customer_id(**kwargs):
     conn.close()
 
     # if there is no matching customer, create one, otherwise get ID
+    print(f'Customer matches: {len(df)}')
     if len(df) != 1:
+        #     pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
+        # insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> insert_fact_health_activity_detail >> \
+        # extract_daily_summary_to_csv >> extract_activity_detail_to_csv >> backup_csv_files >> delete_temp_csv_files
         return 'insert_customer_data'
     else:
+        # TODO: find out why it does not skip to correct task here
+        print('Customer already exists!')
         return 'delete_temp_csv_files'
     
 def parse_xml_file(**kwargs):
@@ -429,16 +498,33 @@ def insert_fact_health_activity_base(**kwargs):
 
     cur = conn.cursor()
 
-    # pull activity ID for cycling activity and add to data
+    # # pull activity ID for cycling activity and add to data
     ti = kwargs["ti"]
     activity_types = ti.xcom_pull(task_ids='insert_dim_activity_type_data', key='activity_types')
     activity_types = pd.DataFrame(activity_types)
-    # print(activity_types.head())
+    # # print(activity_types.head())
+    # # make a list out of activity_name column to convert to SQL text
+    # activity_name_list = df['activity_name'].tolist()
+    # activity_name_string = ', '.join([f"'{activity}'" for activity in activity_name_list])
+    # # TODO: check to see if any unique activities are in new data, and add them if they are
+    # sql = f"""
+    #         SELECT activity_type_id, activity_name
+    #         FROM dim_activity_type
+    #         WHERE activity_name NOT IN ({activity_name_string});
+    #         """
+    # new_activities = pd.read_sql(sql, conn)
+    # if len(new_activities) != 0:
+    #     # append new activity
+    #     new_activities.to_sql('dim_activity_type', 
+    #                           conn, 
+    #                           if_exists='append', 
+    #                           index=False)
 
     # import fact_health_activity data
     date_col = ['creation_date', 'start_date', 'end_date']
-    # records_df[date_col] = records_df[date_col].apply(pd.to_datetime)
-    print('reading fact_health_activity.csv')
+    # TODO: pull these from db table after inserting new activities
+
+    print('reading fact_health_activity_base.csv')
     df = pd.read_csv('tmp/fact_health_activity_base.csv', parse_dates=date_col)
     # map activity_id values from activity_types using activity_name column, and remove activity_name column
     df['activity_type_id'] = df['type'].map(activity_types.set_index('activity_name')['activity_type_id'])
@@ -546,7 +632,7 @@ with DAG(
         task_id = 'backup_csv_files',
         bash_command = '''
             mkdir -p /opt/airflow/output &&
-            cp -f /opt/airflow/tmp/fact_health_activity_summary.csv /opt/airflow/output/fact_health_activity_summary.csv
+            cp -f /opt/airflow/tmp/fact_health_activity_summary.csv /opt/airflow/output/fact_health_activity_summary.csv && 
             cp -f /opt/airflow/tmp/fact_health_activity_detail.csv /opt/airflow/output/fact_health_activity_detail.csv
             '''
     )
@@ -615,9 +701,41 @@ with DAG(
         python_callable = extract_activity_detail_to_csv
     )
 
+    # create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >> create_fact_health_activity_daily >>\
+    # create_fact_health_activity_summary >> create_fact_health_activity_detail >> checking_for_xml_file >> \
+    # parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
+    # check_customer_id >> [insert_customer_data] >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
+    # insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> insert_fact_health_activity_detail >> \
+    # extract_daily_summary_to_csv >> extract_activity_detail_to_csv >> backup_csv_files >> delete_temp_csv_files
+
+    # close (skips all still but diagram looks correct)
+    # create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >> create_fact_health_activity_daily >>\
+    #     create_fact_health_activity_summary >> create_fact_health_activity_detail >> checking_for_xml_file >> \
+    #     parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
+    #     check_customer_id >> [insert_customer_data, backup_csv_files]
+    
+    # insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
+    #     insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> insert_fact_health_activity_detail >> \
+    #     extract_daily_summary_to_csv >> extract_activity_detail_to_csv >> backup_csv_files >> delete_temp_csv_files
+    
+
+    # generated
+    # Upstream Tasks
     create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >> create_fact_health_activity_daily >>\
-    create_fact_health_activity_summary >> create_fact_health_activity_detail >> checking_for_xml_file >> \
-    parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
-    check_customer_id >> [insert_customer_data] >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
-    insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> insert_fact_health_activity_detail >> \
-    extract_daily_summary_to_csv >> extract_activity_detail_to_csv >> backup_csv_files >> delete_temp_csv_files
+    create_fact_health_activity_summary >> create_fact_health_activity_detail >> checking_for_xml_file >> parse_xml_file_task
+
+    # Branching Logic - let's assume a branch operator decides between 'insert_customer_data' and 'backup_csv_files'
+    parse_xml_file_task >> checking_for_fact_health_activity_file >> check_customer_id
+
+    # Branch to either insert_customer_data or backup_csv_files
+    check_customer_id >> insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
+        insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> insert_fact_health_activity_detail >> \
+        extract_daily_summary_to_csv >> extract_activity_detail_to_csv >> backup_csv_files # >> delete_temp_csv_files
+
+    check_customer_id >> delete_temp_csv_files
+
+    
+    # backup_csv_files >> delete_temp_csv_files
+
+    # branching >> [last_task, next_task]
+    # next_task >> final_task
