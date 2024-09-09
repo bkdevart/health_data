@@ -23,37 +23,37 @@ default_args = {
    'owner': 'admin'
 }
 
-def extract_daily_summary_to_csv():
-    conn = psycopg2.connect(
-        host="postgres_health",
-        database="health_db",
-        user="health_db",
-        password="health_db"
-    )
-    df = pd.read_sql('SELECT * FROM fact_health_activity_summary;', conn)
-    df.to_csv('tmp/fact_health_activity_summary.csv', index=False)
-    conn.close()
+# def extract_daily_summary_to_csv():
+#     conn = psycopg2.connect(
+#         host="postgres_health",
+#         database="health_db",
+#         user="health_db",
+#         password="health_db"
+#     )
+#     df = pd.read_sql('SELECT * FROM fact_health_activity_summary;', conn)
+#     df.to_csv('tmp/fact_health_activity_summary.csv', index=False)
+#     conn.close()
 
-def extract_activity_detail_to_csv():
-    engine = create_engine('postgresql+psycopg2://health_db:health_db@postgres_health/health_db')
-    # conn = psycopg2.connect(
-    #     host="postgres_health",
-    #     database="health_db",
-    #     user="health_db",
-    #     password="health_db"
-    # )
-    df = pd.read_sql("""SELECT * FROM fact_health_activity_detail 
-                     WHERE activity_name != 'HKQuantityTypeIdentifierHeartRate' 
-                        OR activity_name != 'HKQuantityTypeIdentifierBasalEnergyBurned';""", engine)
-    # TODO: implement more memory efficient way of writing file to avoid zombie jobs
-    chunksize = 10000  # Number of rows per chunk
+# def extract_activity_detail_to_csv():
+#     engine = create_engine('postgresql+psycopg2://health_db:health_db@postgres_health/health_db')
+#     # conn = psycopg2.connect(
+#     #     host="postgres_health",
+#     #     database="health_db",
+#     #     user="health_db",
+#     #     password="health_db"
+#     # )
+#     df = pd.read_sql("""SELECT * FROM fact_health_activity_detail 
+#                      WHERE activity_name != 'HKQuantityTypeIdentifierHeartRate' 
+#                         OR activity_name != 'HKQuantityTypeIdentifierBasalEnergyBurned';""", engine)
+#     # TODO: implement more memory efficient way of writing file to avoid zombie jobs
+#     chunksize = 10000  # Number of rows per chunk
 
-    with open('tmp/fact_health_activity_detail.csv', 'w') as f:
-        for chunk in range(0, len(df), chunksize):
-            df[chunk:chunk + chunksize].to_csv(f, header=(chunk == 0), index=False)
+#     with open('tmp/fact_health_activity_detail.csv', 'w') as f:
+#         for chunk in range(0, len(df), chunksize):
+#             df[chunk:chunk + chunksize].to_csv(f, header=(chunk == 0), index=False)
 
-    # df.to_csv('tmp/fact_health_activity_detail.csv', index=False)
-    # conn.close()
+#     # df.to_csv('tmp/fact_health_activity_detail.csv', index=False)
+#     # conn.close()
 
 def pull_customer_id(**kwargs):
     ti = kwargs["ti"]
@@ -602,17 +602,17 @@ with DAG(
         sql = 'create_fact_health_activity_base.sql'
     )
 
-    create_fact_health_activity_daily = PostgresOperator(
-        task_id = 'create_fact_health_activity_daily',
-        postgres_conn_id = 'postgres_health_db',
-        sql = 'create_fact_health_activity_daily.sql'
-    )
+    # create_fact_health_activity_daily = PostgresOperator(
+    #     task_id = 'create_fact_health_activity_daily',
+    #     postgres_conn_id = 'postgres_health_db',
+    #     sql = 'create_fact_health_activity_daily.sql'
+    # )
 
-    create_fact_health_activity_detail = PostgresOperator(
-        task_id = 'create_fact_health_activity_detail',
-        postgres_conn_id = 'postgres_health_db',
-        sql = 'create_fact_health_activity_detail.sql'
-    )
+    # create_fact_health_activity_detail = PostgresOperator(
+    #     task_id = 'create_fact_health_activity_detail',
+    #     postgres_conn_id = 'postgres_health_db',
+    #     sql = 'create_fact_health_activity_detail.sql'
+    # )
 
     checking_for_xml_file = FileSensor(
         task_id = 'checking_for_xml_file',
@@ -628,14 +628,14 @@ with DAG(
         timeout = 60 * 10
     )
 
-    backup_csv_files = BashOperator(
-        task_id = 'backup_csv_files',
-        bash_command = '''
-            mkdir -p /opt/airflow/output &&
-            cp -f /opt/airflow/tmp/fact_health_activity_summary.csv /opt/airflow/output/fact_health_activity_summary.csv && 
-            cp -f /opt/airflow/tmp/fact_health_activity_detail.csv /opt/airflow/output/fact_health_activity_detail.csv
-            '''
-    )
+    # backup_csv_files = BashOperator(
+    #     task_id = 'backup_csv_files',
+    #     bash_command = '''
+    #         mkdir -p /opt/airflow/output &&
+    #         cp -f /opt/airflow/tmp/fact_health_activity_summary.csv /opt/airflow/output/fact_health_activity_summary.csv && 
+    #         cp -f /opt/airflow/tmp/fact_health_activity_detail.csv /opt/airflow/output/fact_health_activity_detail.csv
+    #         '''
+    # )
 
     delete_temp_csv_files = BashOperator(
         task_id = 'delete_temp_csv_files',
@@ -667,39 +667,51 @@ with DAG(
         python_callable = insert_fact_health_activity_base
     )
 
-    insert_fact_health_activity_daily = PostgresOperator(
-        task_id = 'insert_fact_health_activity_daily',
+    create_fact_health_activity_daily_view = PostgresOperator(
+        task_id = 'create_fact_health_activity_daily_view',
         postgres_conn_id = 'postgres_health_db',
         sql = 'insert_fact_health_activity_daily.sql'
     )
 
-    create_fact_health_activity_summary = PostgresOperator(
-        task_id = 'create_fact_health_activity_summary',
+    # create_fact_health_activity_summary = PostgresOperator(
+    #     task_id = 'create_fact_health_activity_summary',
+    #     postgres_conn_id = 'postgres_health_db',
+    #     sql = 'create_fact_health_activity_summary.sql'
+    # )
+
+    # insert_fact_health_activity_summary = PostgresOperator(
+    #     task_id = 'insert_fact_health_activity_summary',
+    #     postgres_conn_id = 'postgres_health_db',
+    #     sql = 'insert_fact_health_activity_summary.sql'
+    # )
+
+    create_fact_health_activity_summary_view = PostgresOperator(
+        task_id = 'create_fact_health_activity_summary_view',
         postgres_conn_id = 'postgres_health_db',
-        sql = 'create_fact_health_activity_summary.sql'
+        sql = 'create_fact_health_activity_summary_view.sql'
     )
 
-    insert_fact_health_activity_summary = PostgresOperator(
-        task_id = 'insert_fact_health_activity_summary',
-        postgres_conn_id = 'postgres_health_db',
-        sql = 'insert_fact_health_activity_summary.sql'
-    )
-
-    insert_fact_health_activity_detail = PostgresOperator(
-        task_id = 'insert_fact_health_activity_detail',
+    create_fact_health_activity_detail_view = PostgresOperator(
+        task_id = 'create_fact_health_activity_detail_view',
         postgres_conn_id = 'postgres_health_db',
         sql = 'insert_fact_health_activity_detail.sql'
     )
 
-    extract_daily_summary_to_csv = PythonOperator(
-        task_id = 'extract_daily_summary_to_csv',
-        python_callable = extract_daily_summary_to_csv
-    )
+    # insert_fact_health_activity_detail = PostgresOperator(
+    #     task_id = 'insert_fact_health_activity_detail',
+    #     postgres_conn_id = 'postgres_health_db',
+    #     sql = 'insert_fact_health_activity_detail.sql'
+    # )
 
-    extract_activity_detail_to_csv = PythonOperator(
-        task_id = 'extract_activity_detail_to_csv',
-        python_callable = extract_activity_detail_to_csv
-    )
+    # extract_daily_summary_to_csv = PythonOperator(
+    #     task_id = 'extract_daily_summary_to_csv',
+    #     python_callable = extract_daily_summary_to_csv
+    # )
+
+    # extract_activity_detail_to_csv = PythonOperator(
+    #     task_id = 'extract_activity_detail_to_csv',
+    #     python_callable = extract_activity_detail_to_csv
+    # )
 
     # create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >> create_fact_health_activity_daily >>\
     # create_fact_health_activity_summary >> create_fact_health_activity_detail >> checking_for_xml_file >> \
@@ -721,19 +733,20 @@ with DAG(
 
     # generated
     # Upstream Tasks
-    create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >> create_fact_health_activity_daily >>\
-    create_fact_health_activity_summary >> create_fact_health_activity_detail >> checking_for_xml_file >> parse_xml_file_task
+    # removed: create_fact_health_activity_summary >> , create_fact_health_activity_detail >> ,  >> create_fact_health_activity_daily
+    create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >>\
+    checking_for_xml_file >> parse_xml_file_task
 
     # Branching Logic - let's assume a branch operator decides between 'insert_customer_data' and 'backup_csv_files'
     parse_xml_file_task >> checking_for_fact_health_activity_file >> check_customer_id
 
     # Branch to either insert_customer_data or backup_csv_files
+    # removed:  >> insert_fact_health_activity_summary, extract_daily_summary_to_csv >> extract_activity_detail_to_csv
+    # removed: backup_csv_files # >> delete_temp_csv_files
     check_customer_id >> insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
-        insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> insert_fact_health_activity_detail >> \
-        extract_daily_summary_to_csv >> extract_activity_detail_to_csv >> backup_csv_files # >> delete_temp_csv_files
+        create_fact_health_activity_daily_view >> create_fact_health_activity_summary_view >> create_fact_health_activity_detail_view
 
     check_customer_id >> delete_temp_csv_files
-
     
     # backup_csv_files >> delete_temp_csv_files
 

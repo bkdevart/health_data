@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS fact_health_activity_summary (
     daily_activity_summary_id SERIAL PRIMARY KEY,
     customer_id UUID,
     start_date DATE,
+    source_name VARCHAR,
     avg_bpm FLOAT,
     cycling_miles FLOAT,
     cycling_seconds INT,

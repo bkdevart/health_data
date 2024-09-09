@@ -1,13 +1,16 @@
-INSERT INTO fact_health_activity_detail
-    (customer_id,
-    start_date,
-    activity_name,
-    value,
-    duration_seconds)
+CREATE OR REPLACE VIEW fact_health_activity_detail AS
+-- INSERT INTO fact_health_activity_detail
+    -- (customer_id,
+    -- start_date,
+    -- activity_name,
+    -- source_name,
+    -- value,
+    -- duration_seconds)
 SELECT 
     customer_id,
     start_date,
     activity_name,
+    source_name,
     value,
     duration_seconds
 FROM 
