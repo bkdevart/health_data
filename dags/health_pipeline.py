@@ -525,44 +525,52 @@ def insert_fact_health_activity_base(**kwargs):
     # TODO: pull these from db table after inserting new activities
 
     print('reading fact_health_activity_base.csv')
-    df = pd.read_csv('tmp/fact_health_activity_base.csv', parse_dates=date_col)
-    # map activity_id values from activity_types using activity_name column, and remove activity_name column
-    df['activity_type_id'] = df['type'].map(activity_types.set_index('activity_name')['activity_type_id'])
-    df.drop('type', axis=1, inplace=True)
+    # TODO: getting zombie job on large file, see if you can stream it in better
+    # df = pd.read_csv('tmp/fact_health_activity_base.csv', parse_dates=date_col)
 
-    # fix apostrophes in sourceName columns to avoid SQL insert errors
-    df['source_name'] = df['source_name'].str.replace("'", "''")
-    # TODO: replace HKQuantityTypeIdentifier prefix with null in activity_name (need to do in dim_activity_type too)
-    # df['HKQuantityTypeIdentifier'] = df['HKQuantityTypeIdentifier'].str.replace("HKQuantityTypeIdentifier", "")
-    # add customer id to data
-    customer_id = ti.xcom_pull(task_ids='pull_customer_id', key='customer_id')
-    df['customer_id'] = customer_id
-    df['updated_at'] = pd.to_datetime('now')
-    
-    df['duration_seconds'] = (df['end_date'] - df['start_date']).dt.total_seconds()
-
-    records = df.to_dict('records')
+    # Define the size of each chunk (e.g., 1000 rows per chunk)
+    chunksize = 1000
+    reader = pd.read_csv('tmp/fact_health_activity_base.csv', parse_dates=date_col, chunksize=chunksize)
     print('Inserting into fact_health_activity table')
-    for record in records:
-        query = f"""INSERT INTO fact_health_activity_base 
-                    (customer_id, activity_type_id, 
-                    source_name, unit, value, duration_seconds,
-                    start_date, creation_date, end_date, updated_at) 
-                    VALUES (
-                        '{record['customer_id']}', 
-                        '{record['activity_type_id']}', 
-                        '{record['source_name']}',
-                        '{record['unit']}',
-                        {record['value']},
-                        {record['duration_seconds']},
-                        '{record['start_date']}',
-                        '{record['creation_date']}',
-                        '{record['end_date']}',
-                        '{record['updated_at']}'
-                        )
-                """
+    # Loop through each chunk
+    for df in reader:
+        # map activity_id values from activity_types using activity_name column, and remove activity_name column
+        df['activity_type_id'] = df['type'].map(activity_types.set_index('activity_name')['activity_type_id'])
+        df.drop('type', axis=1, inplace=True)
 
-        cur.execute(query)
+        # fix apostrophes in sourceName columns to avoid SQL insert errors
+        df['source_name'] = df['source_name'].str.replace("'", "''")
+        # TODO: replace HKQuantityTypeIdentifier prefix with null in activity_name (need to do in dim_activity_type too)
+        # df['HKQuantityTypeIdentifier'] = df['HKQuantityTypeIdentifier'].str.replace("HKQuantityTypeIdentifier", "")
+        # add customer id to data
+        customer_id = ti.xcom_pull(task_ids='pull_customer_id', key='customer_id')
+        df['customer_id'] = customer_id
+        df['updated_at'] = pd.to_datetime('now')
+        
+        df['duration_seconds'] = (df['end_date'] - df['start_date']).dt.total_seconds()
+
+        records = df.to_dict('records')
+        
+        for record in records:
+            query = f"""INSERT INTO fact_health_activity_base 
+                        (customer_id, activity_type_id, 
+                        source_name, unit, value, duration_seconds,
+                        start_date, creation_date, end_date, updated_at) 
+                        VALUES (
+                            '{record['customer_id']}', 
+                            '{record['activity_type_id']}', 
+                            '{record['source_name']}',
+                            '{record['unit']}',
+                            {record['value']},
+                            {record['duration_seconds']},
+                            '{record['start_date']}',
+                            '{record['creation_date']}',
+                            '{record['end_date']}',
+                            '{record['updated_at']}'
+                            )
+                    """
+
+            cur.execute(query)
 
     conn.commit()
 
