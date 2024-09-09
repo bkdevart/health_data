@@ -78,6 +78,7 @@ def pull_customer_id(**kwargs):
     # df = pd.read_sql('SELECT customer_id FROM dim_customer;', conn)
     customer_id = df['customer_id'].values[0]
     ti.xcom_push('customer_id', customer_id)
+    # return customer_id
 
 def insert_dim_activity_type_data(**kwargs):
     conn = psycopg2.connect(
@@ -385,6 +386,7 @@ def parse_xml_file(**kwargs):
 
     print('Finished reading XML into lists')
     # create records dataframe
+    # TODO: memory issues may be happening here
     records_df = pd.DataFrame({
         'type': type,
         'source_name': sourceName,
@@ -610,11 +612,11 @@ with DAG(
         sql = 'create_fact_health_activity_base.sql'
     )
 
-    # create_fact_health_activity_daily = PostgresOperator(
-    #     task_id = 'create_fact_health_activity_daily',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'create_fact_health_activity_daily.sql'
-    # )
+    create_fact_health_activity_daily = PostgresOperator(
+        task_id = 'create_fact_health_activity_daily',
+        postgres_conn_id = 'postgres_health_db',
+        sql = 'create_fact_health_activity_daily.sql'
+    )
 
     # create_fact_health_activity_detail = PostgresOperator(
     #     task_id = 'create_fact_health_activity_detail',
@@ -674,9 +676,9 @@ with DAG(
         task_id = 'insert_fact_health_activity_base',
         python_callable = insert_fact_health_activity_base
     )
-
-    create_fact_health_activity_daily_view = PostgresOperator(
-        task_id = 'create_fact_health_activity_daily_view',
+    # ti = kwargs["ti"]
+    insert_fact_health_activity_daily = PostgresOperator(
+        task_id = 'insert_fact_health_activity_daily',
         postgres_conn_id = 'postgres_health_db',
         sql = 'insert_fact_health_activity_daily.sql'
     )
@@ -743,7 +745,7 @@ with DAG(
     # Upstream Tasks
     # removed: create_fact_health_activity_summary >> , create_fact_health_activity_detail >> ,  >> create_fact_health_activity_daily
     create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >>\
-    checking_for_xml_file >> parse_xml_file_task
+    create_fact_health_activity_daily >> checking_for_xml_file >> parse_xml_file_task
 
     # Branching Logic - let's assume a branch operator decides between 'insert_customer_data' and 'backup_csv_files'
     parse_xml_file_task >> checking_for_fact_health_activity_file >> check_customer_id
@@ -752,7 +754,7 @@ with DAG(
     # removed:  >> insert_fact_health_activity_summary, extract_daily_summary_to_csv >> extract_activity_detail_to_csv
     # removed: backup_csv_files # >> delete_temp_csv_files
     check_customer_id >> insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
-        create_fact_health_activity_daily_view >> create_fact_health_activity_summary_view >> create_fact_health_activity_detail_view
+        insert_fact_health_activity_daily >> create_fact_health_activity_summary_view >> create_fact_health_activity_detail_view
 
     check_customer_id >> delete_temp_csv_files
     
