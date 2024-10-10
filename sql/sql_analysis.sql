@@ -246,3 +246,58 @@ WHERE
     )
 ORDER BY 
     customer_id, activity_name, unit, day;
+
+-- weekday performance comparison
+WITH daily_totals AS (
+    SELECT 
+        DATE_TRUNC('day', start_date) AS day,
+        customer_id,
+        activity_name,
+        unit,
+        SUM(value) AS daily_total
+    FROM 
+        fact_health_activity_base
+    LEFT JOIN 
+        dim_activity_type USING (activity_type_id)
+    GROUP BY 
+        DATE_TRUNC('day', start_date),
+        customer_id,
+        activity_name,
+        unit
+)
+SELECT 
+    TO_CHAR(day, 'Day') AS weekday,
+    customer_id,
+    activity_name,
+    unit,
+    AVG(daily_total) AS avg_weekly
+FROM 
+    daily_totals
+GROUP BY 
+    TO_CHAR(day, 'Day'),
+    customer_id,
+    activity_name,
+    unit
+ORDER BY 
+    avg_weekly DESC;
+
+-- monthly pace trends
+SELECT 
+    DATE_TRUNC('month', start_date) AS month,
+    customer_id,
+    activity_name,
+    unit,
+    SUM(value) / NULLIF(SUM(duration_seconds), 0) * 3600 AS avg_pace_unit_hour
+FROM 
+    fact_health_activity_base
+LEFT JOIN 
+    dim_activity_type USING (activity_type_id)
+WHERE 
+    activity_name IN ('HKQuantityTypeIdentifierDistanceCycling', 'HKQuantityTypeIdentifierDistanceWalkingRunning')
+GROUP BY 
+    DATE_TRUNC('month', start_date),
+    customer_id,
+    activity_name,
+    unit
+ORDER BY 
+    month, customer_id, activity_name, unit;
