@@ -43,4 +43,3 @@ WHERE customer_id = '6327daa0-946e-4c05-930f-f4b445133c88'
     -- AND activity_type_id = '4d189e3d-1eec-49ee-836d-97ae15b9ce13' 
     AND DATE(start_date) = '2024-08-20'
 GROUP BY start_date;
-
