@@ -1,10 +1,6 @@
-# from datetime import datetime, timedelta
 import pandas as pd
-# import numpy as np
 import psycopg2
 from sqlalchemy import create_engine
-# import glob
-# import json
 import xml.etree.ElementTree as ET
 
 from airflow import DAG
@@ -14,46 +10,11 @@ from airflow.operators.bash import BashOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.sensors.filesystem import FileSensor
 from airflow.models import Variable
-# from airflow.models.connection import Connection
-# from airflow.operators.dummy_operator import DummyOperator
-# from airflow.operators.python_operator import BranchPythonOperator
 
 
 default_args = {
    'owner': 'admin'
 }
-
-# def extract_daily_summary_to_csv():
-#     conn = psycopg2.connect(
-#         host="postgres_health",
-#         database="health_db",
-#         user="health_db",
-#         password="health_db"
-#     )
-#     df = pd.read_sql('SELECT * FROM fact_health_activity_summary;', conn)
-#     df.to_csv('tmp/fact_health_activity_summary.csv', index=False)
-#     conn.close()
-
-# def extract_activity_detail_to_csv():
-#     engine = create_engine('postgresql+psycopg2://health_db:health_db@postgres_health/health_db')
-#     # conn = psycopg2.connect(
-#     #     host="postgres_health",
-#     #     database="health_db",
-#     #     user="health_db",
-#     #     password="health_db"
-#     # )
-#     df = pd.read_sql("""SELECT * FROM fact_health_activity_detail 
-#                      WHERE activity_name != 'HKQuantityTypeIdentifierHeartRate' 
-#                         OR activity_name != 'HKQuantityTypeIdentifierBasalEnergyBurned';""", engine)
-#     # TODO: implement more memory efficient way of writing file to avoid zombie jobs
-#     chunksize = 10000  # Number of rows per chunk
-
-#     with open('tmp/fact_health_activity_detail.csv', 'w') as f:
-#         for chunk in range(0, len(df), chunksize):
-#             df[chunk:chunk + chunksize].to_csv(f, header=(chunk == 0), index=False)
-
-#     # df.to_csv('tmp/fact_health_activity_detail.csv', index=False)
-#     # conn.close()
 
 def pull_customer_id(**kwargs):
     ti = kwargs["ti"]
@@ -75,10 +36,8 @@ def pull_customer_id(**kwargs):
                 AND blood_type='{customer_info["blood_type"][0]}';
             """
     df = pd.read_sql(sql, conn)
-    # df = pd.read_sql('SELECT customer_id FROM dim_customer;', conn)
     customer_id = df['customer_id'].values[0]
     ti.xcom_push('customer_id', customer_id)
-    # return customer_id
 
 def insert_dim_activity_type_data(**kwargs):
     conn = psycopg2.connect(
@@ -143,30 +102,15 @@ def insert_dim_activity_type_data(**kwargs):
         #             if_exists='append', 
         #             index=False)
     elif len(new_activities) != 0:
-        # append new activity
-        # records = new_activities.to_dict('records')
-        # for record in records:
-        #     query = f"""INSERT INTO dim_activity_type 
-        #                 (activity_name) 
-        #                 VALUES (
-        #                     '{record['activity_name']}'
-        #                     )
-        #             """
-        #     cur.execute(query)
-        # conn.commit()
-        # TODO: doesn't work without SQLalchemy - implement if simpler/faster/etc
+        # TODO: tst this- implement across other areas if simpler/faster/etc
         new_activities.to_sql('dim_activity_type', 
                                 engine, 
                                 if_exists='append', 
                                 index=False)
-    # else:
-    #     # may not need else
-    #     pass
 
     # select from the table to get db-assigned ids and push to XCOM
     df = pd.read_sql('SELECT * FROM dim_activity_type;', conn)
     activity_types_dict = df.to_dict()
-    # activity_types_string = json.dumps(activity_types_dict)
     ti.xcom_push('activity_types', activity_types_dict)
 
     cur.close()
@@ -182,7 +126,6 @@ def insert_activity_summary_data(**kwargs):
 
     cur = conn.cursor()
 
-    # for file in glob.glob('tmp/activity_summary.csv'):
     df = pd.read_csv('tmp/activity_summary.csv')
     
     # add customer_id
@@ -278,9 +221,6 @@ def check_customer_id(**kwargs):
     # if there is no matching customer, create one, otherwise get ID
     print(f'Customer matches: {len(df)}')
     if len(df) != 1:
-        #     pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
-        # insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> insert_fact_health_activity_detail >> \
-        # extract_daily_summary_to_csv >> extract_activity_detail_to_csv >> backup_csv_files >> delete_temp_csv_files
         return 'insert_customer_data'
     else:
         # TODO: find out why it does not skip to correct task here
@@ -302,7 +242,6 @@ def parse_xml_file(**kwargs):
     startDate = [] 
     endDate = [] 
     value = []
-    # value = np.array([])
 
     # activity_summary fields
     date = []
@@ -504,33 +443,11 @@ def insert_fact_health_activity_base(**kwargs):
     ti = kwargs["ti"]
     activity_types = ti.xcom_pull(task_ids='insert_dim_activity_type_data', key='activity_types')
     activity_types = pd.DataFrame(activity_types)
-    # # print(activity_types.head())
-    # # make a list out of activity_name column to convert to SQL text
-    # activity_name_list = df['activity_name'].tolist()
-    # activity_name_string = ', '.join([f"'{activity}'" for activity in activity_name_list])
-    # # TODO: check to see if any unique activities are in new data, and add them if they are
-    # sql = f"""
-    #         SELECT activity_type_id, activity_name
-    #         FROM dim_activity_type
-    #         WHERE activity_name NOT IN ({activity_name_string});
-    #         """
-    # new_activities = pd.read_sql(sql, conn)
-    # if len(new_activities) != 0:
-    #     # append new activity
-    #     new_activities.to_sql('dim_activity_type', 
-    #                           conn, 
-    #                           if_exists='append', 
-    #                           index=False)
 
     # import fact_health_activity data
     date_col = ['creation_date', 'start_date', 'end_date']
-    # TODO: pull these from db table after inserting new activities
-
     print('reading fact_health_activity_base.csv')
-    # TODO: getting zombie job on large file, see if you can stream it in better
-    # df = pd.read_csv('tmp/fact_health_activity_base.csv', parse_dates=date_col)
-
-    # Define the size of each chunk (e.g., 1000 rows per chunk)
+    # TODO: modify chunksize to optimize for memory/performance
     chunksize = 1000
     reader = pd.read_csv('tmp/fact_health_activity_base.csv', parse_dates=date_col, chunksize=chunksize)
     print('Inserting into fact_health_activity table')
@@ -618,12 +535,6 @@ with DAG(
         sql = 'create_fact_health_activity_daily.sql'
     )
 
-    # create_fact_health_activity_detail = PostgresOperator(
-    #     task_id = 'create_fact_health_activity_detail',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'create_fact_health_activity_detail.sql'
-    # )
-
     checking_for_xml_file = FileSensor(
         task_id = 'checking_for_xml_file',
         filepath = 'tmp/export.xml',
@@ -637,15 +548,6 @@ with DAG(
         poke_interval = 10,
         timeout = 60 * 10
     )
-
-    # backup_csv_files = BashOperator(
-    #     task_id = 'backup_csv_files',
-    #     bash_command = '''
-    #         mkdir -p /opt/airflow/output &&
-    #         cp -f /opt/airflow/tmp/fact_health_activity_summary.csv /opt/airflow/output/fact_health_activity_summary.csv && 
-    #         cp -f /opt/airflow/tmp/fact_health_activity_detail.csv /opt/airflow/output/fact_health_activity_detail.csv
-    #         '''
-    # )
 
     delete_temp_csv_files = BashOperator(
         task_id = 'delete_temp_csv_files',
@@ -676,24 +578,12 @@ with DAG(
         task_id = 'insert_fact_health_activity_base',
         python_callable = insert_fact_health_activity_base
     )
-    # ti = kwargs["ti"]
+
     insert_fact_health_activity_daily = PostgresOperator(
         task_id = 'insert_fact_health_activity_daily',
         postgres_conn_id = 'postgres_health_db',
         sql = 'insert_fact_health_activity_daily.sql'
     )
-
-    # create_fact_health_activity_summary = PostgresOperator(
-    #     task_id = 'create_fact_health_activity_summary',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'create_fact_health_activity_summary.sql'
-    # )
-
-    # insert_fact_health_activity_summary = PostgresOperator(
-    #     task_id = 'insert_fact_health_activity_summary',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'insert_fact_health_activity_summary.sql'
-    # )
 
     create_fact_health_activity_summary_view = PostgresOperator(
         task_id = 'create_fact_health_activity_summary_view',
@@ -707,43 +597,7 @@ with DAG(
         sql = 'insert_fact_health_activity_detail.sql'
     )
 
-    # insert_fact_health_activity_detail = PostgresOperator(
-    #     task_id = 'insert_fact_health_activity_detail',
-    #     postgres_conn_id = 'postgres_health_db',
-    #     sql = 'insert_fact_health_activity_detail.sql'
-    # )
-
-    # extract_daily_summary_to_csv = PythonOperator(
-    #     task_id = 'extract_daily_summary_to_csv',
-    #     python_callable = extract_daily_summary_to_csv
-    # )
-
-    # extract_activity_detail_to_csv = PythonOperator(
-    #     task_id = 'extract_activity_detail_to_csv',
-    #     python_callable = extract_activity_detail_to_csv
-    # )
-
-    # create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >> create_fact_health_activity_daily >>\
-    # create_fact_health_activity_summary >> create_fact_health_activity_detail >> checking_for_xml_file >> \
-    # parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
-    # check_customer_id >> [insert_customer_data] >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
-    # insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> insert_fact_health_activity_detail >> \
-    # extract_daily_summary_to_csv >> extract_activity_detail_to_csv >> backup_csv_files >> delete_temp_csv_files
-
-    # close (skips all still but diagram looks correct)
-    # create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >> create_fact_health_activity_daily >>\
-    #     create_fact_health_activity_summary >> create_fact_health_activity_detail >> checking_for_xml_file >> \
-    #     parse_xml_file_task >> [checking_for_fact_health_activity_file] >> \
-    #     check_customer_id >> [insert_customer_data, backup_csv_files]
-    
-    # insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
-    #     insert_fact_health_activity_daily >> insert_fact_health_activity_summary >> insert_fact_health_activity_detail >> \
-    #     extract_daily_summary_to_csv >> extract_activity_detail_to_csv >> backup_csv_files >> delete_temp_csv_files
-    
-
-    # generated
     # Upstream Tasks
-    # removed: create_fact_health_activity_summary >> , create_fact_health_activity_detail >> ,  >> create_fact_health_activity_daily
     create_table_dim_customer >> create_table_dim_activity_type >> create_fact_health_activity_base >>\
     create_fact_health_activity_daily >> checking_for_xml_file >> parse_xml_file_task
 
@@ -751,14 +605,7 @@ with DAG(
     parse_xml_file_task >> checking_for_fact_health_activity_file >> check_customer_id
 
     # Branch to either insert_customer_data or backup_csv_files
-    # removed:  >> insert_fact_health_activity_summary, extract_daily_summary_to_csv >> extract_activity_detail_to_csv
-    # removed: backup_csv_files # >> delete_temp_csv_files
     check_customer_id >> insert_customer_data >> pull_customer_id >> insert_dim_activity_type_data >> insert_fact_health_activity_base >> \
         insert_fact_health_activity_daily >> create_fact_health_activity_summary_view >> create_fact_health_activity_detail_view
 
     check_customer_id >> delete_temp_csv_files
-    
-    # backup_csv_files >> delete_temp_csv_files
-
-    # branching >> [last_task, next_task]
-    # next_task >> final_task
