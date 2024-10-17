@@ -1,0 +1,8 @@
+schema: public
+label: Summary Totals
+description: ''
+sql: "SELECT \n  SUM(cycling_miles) AS Cycling,\n  SUM(walking_running_miles) AS Walking,\n\
+  \  SUM(steps_total) AS Steps\nFROM fact_health_activity_summary;"
+uuid: 48093c5a-2d46-431e-b8c1-417b3455e5f9
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

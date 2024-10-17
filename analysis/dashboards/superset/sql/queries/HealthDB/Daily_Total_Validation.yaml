@@ -1,0 +1,24 @@
+schema: null
+label: Daily Total Validation
+description: ''
+sql: "-- group without source name\nWITH no_source_group AS (\n  SELECT \n      DATE_TRUNC('day',\
+  \ start_date) AS day,\n      customer_id,\n      activity_name,\n      unit,\n \
+  \     SUM(value) AS daily_total\n  FROM \n      fact_health_activity_base\n  LEFT\
+  \ JOIN\n      dim_activity_type USING (activity_type_id)\n  GROUP BY \n      DATE_TRUNC('day',\
+  \ start_date),\n      customer_id,\n      activity_name,\n      unit\n),\n\n-- group\
+  \ with source_name\nsource_group AS (\n  SELECT \n      DATE_TRUNC('day', start_date)\
+  \ AS day,\n      customer_id,\n      activity_name,\n      unit,\n      SUM(value)\
+  \ AS daily_total\n  FROM \n      fact_health_activity_base\n  LEFT JOIN\n      dim_activity_type\
+  \ USING (activity_type_id)\n  GROUP BY \n      DATE_TRUNC('day', start_date),\n\
+  \      customer_id,\n      activity_name,\n      source_name,\n      unit\n),\n\n\
+  -- join both calculated queries\njoin_calculations AS (\nSELECT \n  day,\n  customer_id,\
+  \ \n  activity_name, \n  no_source_group.daily_total as no_source_group,\n  source_group.daily_total\
+  \ as source_group\nFROM no_source_group INNER JOIN source_group\n  USING (day, customer_id,\
+  \ activity_name)\n),\n\n-- see if there are differences between grouped sums\ncalculate_var\
+  \ AS (\nSELECT\n  day,\n  customer_id, \n  activity_name, \n  no_source_group,\n\
+  \  source_group,\n  no_source_group - source_group AS var\nFROM join_calculations\n\
+  )\n\n-- check for variances in totals only\nSELECT * \nFROM calculate_var\nWHERE\
+  \ var != 0 AND (var < -0.01 OR var > 0.01)"
+uuid: 23994654-894e-48c3-858b-6d5ab0f81e54
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

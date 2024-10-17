@@ -96,6 +96,7 @@ WITH daily_data AS (
     SELECT 
         DATE_TRUNC('day', start_date) AS day,
         customer_id,
+        source_name,
         activity_name,
         unit,
         SUM(value) AS daily_total
@@ -103,25 +104,28 @@ WITH daily_data AS (
         fact_health_activity_base
     LEFT JOIN
         dim_activity_type USING (activity_type_id)
+    WHERE activity_name IN ('HKQuantityTypeIdentifierDistanceCycling', 'HKQuantityTypeIdentifierDistanceWalkingRunning')
     GROUP BY 
         DATE_TRUNC('day', start_date),
         customer_id,
+        source_name,
         activity_name,
         unit
 )
 SELECT 
     day,
     customer_id,
-    activity_name,
+    source_name,
+    REPLACE(activity_name, 'HKQuantityTypeIdentifier', '') as activity_name,
     unit,
     daily_total,
-    LAG(daily_total) OVER (PARTITION BY customer_id, activity_name, unit ORDER BY day) AS previous_day_total,
-    ((daily_total - LAG(daily_total) OVER (PARTITION BY customer_id, activity_name, unit ORDER BY day)) 
-     / NULLIF(LAG(daily_total) OVER (PARTITION BY customer_id, activity_name, unit ORDER BY day), 0)) * 100 AS percentage_change
+    LAG(daily_total) OVER (PARTITION BY customer_id, source_name, activity_name, unit ORDER BY day) AS previous_day_total,
+    ((daily_total - LAG(daily_total) OVER (PARTITION BY customer_id, source_name, activity_name, unit ORDER BY day)) 
+     / NULLIF(LAG(daily_total) OVER (PARTITION BY customer_id, source_name, activity_name, unit ORDER BY day), 0)) * 100 AS percentage_change
 FROM 
     daily_data
 ORDER BY 
-    customer_id, activity_name, unit, day;
+    customer_id, source_name, activity_name, unit, day;
 
 -- cumulative distance over time
 WITH daily_data AS (
@@ -218,6 +222,7 @@ WITH daily_data AS (
     FROM 
         fact_health_activity_base LEFT JOIN
         dim_activity_type USING (activity_type_id)
+    WHERE activity_name IN ('HKQuantityTypeIdentifierDistanceCycling', 'HKQuantityTypeIdentifierDistanceWalkingRunning')
     GROUP BY 
         DATE_TRUNC('day', start_date),
         customer_id,
@@ -226,10 +231,10 @@ WITH daily_data AS (
 )
 SELECT 
     day,
-    customer_id,
-    activity_name,
+    LEFT(customer_id::varchar, 2) as customer_id,
+    REPLACE(activity_name, 'HKQuantityTypeIdentifier', '') as activity_name,
     unit,
-    daily_total
+    ROUND(daily_total) as max_daily
 FROM 
     daily_data
 WHERE 
@@ -270,16 +275,18 @@ SELECT
     customer_id,
     activity_name,
     unit,
-    AVG(daily_total) AS avg_weekly
+    AVG(daily_total) AS avg_weekday
 FROM 
     daily_totals
+WHERE 
+    activity_name IN ('HKQuantityTypeIdentifierDistanceCycling', 'HKQuantityTypeIdentifierDistanceWalkingRunning')
 GROUP BY 
     TO_CHAR(day, 'Day'),
     customer_id,
     activity_name,
     unit
 ORDER BY 
-    avg_weekly DESC;
+    avg_weekday DESC;
 
 -- monthly pace trends
 SELECT 

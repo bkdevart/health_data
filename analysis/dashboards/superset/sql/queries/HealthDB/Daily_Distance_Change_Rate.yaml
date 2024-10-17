@@ -1,0 +1,20 @@
+schema: null
+label: Daily Distance Change Rate
+description: ''
+sql: "WITH daily_data AS (\n    SELECT \n        DATE_TRUNC('day', start_date) AS\
+  \ day,\n        customer_id,\n        activity_name,\n        unit,\n        SUM(value)\
+  \ AS daily_total\n    FROM \n        fact_health_activity_base\n    LEFT JOIN\n\
+  \        dim_activity_type USING (activity_type_id)\n    WHERE activity_name IN\
+  \ ('HKQuantityTypeIdentifierDistanceCycling', 'HKQuantityTypeIdentifierDistanceWalkingRunning')\n\
+  \    GROUP BY \n        DATE_TRUNC('day', start_date),\n        customer_id,\n \
+  \       activity_name,\n        unit\n)\nSELECT \n    day,\n    customer_id,\n \
+  \   REPLACE(activity_name, 'HKQuantityTypeIdentifier', '') as activity_name,\n \
+  \   unit,\n    daily_total,\n    LAG(daily_total) OVER (PARTITION BY customer_id,\
+  \ activity_name, unit ORDER BY day) AS previous_day_total,\n    ((daily_total -\
+  \ LAG(daily_total) OVER (PARTITION BY customer_id, activity_name, unit ORDER BY\
+  \ day)) \n     / NULLIF(LAG(daily_total) OVER (PARTITION BY customer_id, activity_name,\
+  \ unit ORDER BY day), 0)) * 100 AS percentage_change\nFROM \n    daily_data\nORDER\
+  \ BY \n    customer_id, activity_name, unit, day;"
+uuid: e2594ba5-e1f1-45d0-8c7d-f0a6696edaad
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

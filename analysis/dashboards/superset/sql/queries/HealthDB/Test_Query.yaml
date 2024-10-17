@@ -1,0 +1,11 @@
+schema: null
+label: Test Query
+description: For prototyping
+sql: "    SELECT \n        DATE_TRUNC('day', start_date) AS day,\n        customer_id,\n\
+  \        activity_name,\n        unit,\n        SUM(value) AS daily_total\n    FROM\
+  \ \n        fact_health_activity_base LEFT JOIN\n        dim_activity_type USING\
+  \ (activity_type_id)\n    GROUP BY \n        DATE_TRUNC('day', start_date),\n  \
+  \      customer_id,\n        activity_name,\n        unit"
+uuid: 3bc64bdc-7def-40fa-804d-b538e44e3051
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

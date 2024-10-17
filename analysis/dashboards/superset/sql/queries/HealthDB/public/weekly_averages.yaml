@@ -1,0 +1,11 @@
+schema: public
+label: weekly_averages
+description: ''
+sql: "SELECT \n    DATE_TRUNC('week', start_date) AS week,\n    activity_name,\n \
+  \   unit,\n    AVG(value) AS weekly_avg\nFROM \n    fact_health_activity_base LEFT\
+  \ JOIN\n    dim_activity_type USING (activity_type_id)\n-- spotcheck a week\nWHERE\
+  \ DATE_TRUNC('week', start_date) = '2024-08-05'\nGROUP BY \n    DATE_TRUNC('week',\
+  \ start_date),\n    customer_id,\n    activity_name,\n    unit\nORDER BY \n    week;"
+uuid: a6992ab2-a895-4406-813e-84d25b1e675a
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

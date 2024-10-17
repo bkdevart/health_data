@@ -1,0 +1,14 @@
+schema: null
+label: Cumulative Totals Over Time
+description: ''
+sql: "WITH daily_data AS (\n    SELECT \n        DATE_TRUNC('day', start_date) AS\
+  \ day,\n        customer_id,\n        activity_name,\n        unit,\n        SUM(value)\
+  \ AS daily_total\n    FROM \n        fact_health_activity_base LEFT JOIN\n     \
+  \   dim_activity_type USING (activity_type_id)\n    GROUP BY \n        DATE_TRUNC('day',\
+  \ start_date),\n        customer_id,\n        activity_name,\n        unit\n)\n\
+  SELECT \n    day,\n    customer_id,\n    activity_name,\n    unit,\n    SUM(daily_total)\
+  \ OVER (PARTITION BY customer_id, activity_name, unit ORDER BY day) AS cumulative_total\n\
+  FROM \n    daily_data\nORDER BY \n    customer_id, activity_name, unit, day;\n"
+uuid: 1cb600e5-e5ea-4d11-830c-646ed38b9980
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

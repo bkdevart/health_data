@@ -1,0 +1,49 @@
+schema: null
+label: Daily Change Test
+description: ''
+sql: "WITH daily_data AS (\n    SELECT \n        DATE_TRUNC('day', start_date) AS\
+  \ day,\n        customer_id,\n        source_name,\n        activity_name,\n   \
+  \     unit,\n        SUM(value) AS daily_total\n    FROM \n        fact_health_activity_base\n\
+  \    LEFT JOIN\n        dim_activity_type USING (activity_type_id)\n    -- modified\
+  \ for testing\n    WHERE activity_name IN ('HKQuantityTypeIdentifierDistanceCycling')\n\
+  \      AND customer_id = '8daad25d-a852-4624-b22f-e99b86929a84'\n      AND (source_name\
+  \ LIKE '%Watch%' OR source_name LIKE '%Brandon%')\n    GROUP BY \n        DATE_TRUNC('day',\
+  \ start_date),\n        customer_id,\n        source_name,\n        activity_name,\n\
+  \        unit\n),\ndays AS (\n    -- modify this to generate more dates\n    SELECT\
+  \ \n    GENERATE_SERIES(\n        (SELECT MIN(start_date::date) FROM fact_health_activity_base),\n\
+  \        (SELECT MAX(start_date::date) FROM fact_health_activity_base),\n      \
+  \  '1 day'::interval\n    ) AS day\n)\nSELECT \n    d.day,\n    dd.customer_id,\n\
+  \    dd.source_name,\n    REPLACE(dd.activity_name, 'HKQuantityTypeIdentifier',\
+  \ '') as activity_name,\n    dd.unit,\n    COALESCE(dd.daily_total, 0) AS daily_total,\n\
+  \    LAG(COALESCE(dd.daily_total, 0)) OVER (PARTITION BY dd.customer_id, dd.source_name,\
+  \ dd.activity_name, dd.unit ORDER BY d.day, dd.customer_id, dd.source_name, dd.activity_name,\
+  \ dd.unit) AS previous_day_total,\n    (CASE\n        WHEN LAG(COALESCE(dd.daily_total,\
+  \ 0)) OVER (PARTITION BY dd.customer_id, dd.source_name, dd.activity_name, dd.unit\
+  \ ORDER BY d.day, dd.customer_id, dd.source_name, dd.activity_name, dd.unit) = 0\
+  \ THEN NULL\n        ELSE ((COALESCE(dd.daily_total, 0) - LAG(COALESCE(dd.daily_total,\
+  \ 0)) OVER (PARTITION BY dd.customer_id, dd.source_name, dd.activity_name, dd.unit\
+  \ ORDER BY d.day, dd.customer_id, dd.source_name, dd.activity_name, dd.unit)) \n\
+  \            / NULLIF(LAG(COALESCE(dd.daily_total, 0)) OVER (PARTITION BY dd.customer_id,\
+  \ dd.source_name, dd.activity_name, dd.unit ORDER BY d.day, dd.customer_id, dd.source_name,\
+  \ dd.activity_name, dd.unit), 0)) * 100\n     END) AS percentage_change\nFROM \n\
+  \    days d\nLEFT JOIN \n    daily_data dd\nON d.day = dd.day\n-- modify for testing\n\
+  WHERE d.day BETWEEN '2024-06-27' AND '2024-07-30'\nORDER BY \n    dd.customer_id,\
+  \ dd.source_name, dd.activity_name, dd.unit, d.day;\n    \n    \n-- test query\n\
+  SELECT \n        DATE_TRUNC('day', start_date) AS day,\n        customer_id,\n \
+  \       source_name,\n        activity_name,\n        unit,\n        SUM(value)\
+  \ AS daily_total\n    FROM \n        fact_health_activity_base\n    LEFT JOIN\n\
+  \        dim_activity_type USING (activity_type_id)\n    -- modified for testing\n\
+  \    WHERE activity_name IN ('HKQuantityTypeIdentifierDistanceCycling')\n      AND\
+  \ customer_id = '8daad25d-a852-4624-b22f-e99b86929a84'\n      -- AND source_name\
+  \ = 'Brandon''s Apple\\u00a0Watch'\n      AND (source_name LIKE '%Watch%' OR source_name\
+  \ LIKE '%Brandon%')\n    GROUP BY \n        DATE_TRUNC('day', start_date),\n   \
+  \     customer_id,\n        source_name,\n        activity_name,\n        unit;\n\
+  \        \n-- another test\nSELECT *\nFROM fact_health_activity_base\nWHERE source_name\
+  \ ~ '[^\\x00-\\x7F]';\n\n-- another\nSELECT \n    source_name,\n    regexp_matches(source_name,\
+  \ '[^\\x00-\\x7F]', 'g') AS bizarre_characters\nFROM \n    fact_health_activity_base\n\
+  WHERE \n    source_name ~ '[^\\x00-\\x7F]';\n    \n-- another\nSELECT \n    source_name,\n\
+  \    regexp_matches(source_name, '.{0,3}[^a-zA-Z0-9\\s,.!?-].{0,3}', 'g') AS bizarre_with_context\n\
+  FROM \n    fact_health_activity_base\nWHERE \n    source_name ~ '[^a-zA-Z0-9\\s,.!?-]';\n"
+uuid: 5edbdeb7-b8cb-4219-8604-bfe4cf9260b6
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

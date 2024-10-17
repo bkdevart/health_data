@@ -1,0 +1,14 @@
+schema: null
+label: Monthly Pace Trends
+description: ''
+sql: "SELECT \n    DATE_TRUNC('month', start_date) AS month,\n    customer_id,\n \
+  \   source_name,\n    activity_name,\n    unit,\n    SUM(value) / NULLIF(SUM(duration_seconds),\
+  \ 0) * 3600 AS avg_pace_unit_hour\nFROM \n    fact_health_activity_base\nLEFT JOIN\
+  \ \n    dim_activity_type USING (activity_type_id)\nWHERE \n    activity_name IN\
+  \ ('HKQuantityTypeIdentifierDistanceCycling', 'HKQuantityTypeIdentifierDistanceWalkingRunning')\n\
+  GROUP BY \n    DATE_TRUNC('month', start_date),\n    customer_id,\n    source_name,\n\
+  \    activity_name,\n    unit\nORDER BY \n    month, customer_id, source_name, activity_name,\
+  \ unit;"
+uuid: 5e824433-8cfe-4386-b5a4-42f5e3f47d30
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

@@ -1,0 +1,9 @@
+schema: public
+label: Dashboard Summary View
+description: ''
+sql: 'SELECT *, DATE(start_date) AS date
+
+  FROM fact_health_activity_summary;'
+uuid: f7284f24-d9f2-4316-bf7f-cd5f97ef6904
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

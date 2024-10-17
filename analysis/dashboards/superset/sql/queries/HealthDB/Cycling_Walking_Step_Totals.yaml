@@ -1,0 +1,11 @@
+schema: null
+label: Cycling Walking Step Totals
+description: ''
+sql: "SELECT\n  source_name,\n  AVG(avg_bpm) as avg_bpm,\n  SUM(cycling_miles) as\
+  \ cycling_miles,\n  SUM(cycling_seconds) as cycling_seconds,\n  SUM(walking_running_miles)\
+  \ as walking_running_miles,\n  SUM(walking_running_seconds) as walking_running_seconds,\n\
+  \  SUM(steps_total) as steps_total,\n  SUM(step_seconds) as step_seconds\nFROM fact_health_activity_summary\n\
+  GROUP BY source_name\n;"
+uuid: c5ed0851-22b9-491a-9986-fb77eb900ee3
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

@@ -1,0 +1,16 @@
+schema: null
+label: Moving Averages for Daily Totals
+description: ''
+sql: "WITH daily_data AS (\n  SELECT \n    DATE_TRUNC('day', start_date) AS day,\n\
+  \    customer_id,\n    activity_name,\n    unit,\n    SUM(value) AS daily_total\n\
+  \  FROM \n    fact_health_activity_base\n  LEFT JOIN\n    dim_activity_type USING\
+  \ (activity_type_id)\n  WHERE activity_name IN ('HKQuantityTypeIdentifierDistanceCycling',\
+  \ 'HKQuantityTypeIdentifierDistanceWalkingRunning')\n  GROUP BY \n    DATE_TRUNC('day',\
+  \ start_date),\n    customer_id,\n    activity_name,\n    unit\n)\nSELECT \n  day,\n\
+  \  customer_id,\n  activity_name,\n  unit,\n  AVG(daily_total) OVER (\n      PARTITION\
+  \ BY customer_id, activity_name, unit \n      ORDER BY day \n      ROWS BETWEEN\
+  \ 6 PRECEDING AND CURRENT ROW\n  ) AS moving_avg_daily_total\nFROM \n  daily_data\n\
+  ORDER BY \n  customer_id, activity_name, unit, day;\n"
+uuid: 2e1f21a6-d5d7-475c-9737-967394e901a2
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

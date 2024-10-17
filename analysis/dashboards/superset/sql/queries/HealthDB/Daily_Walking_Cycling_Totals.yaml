@@ -1,0 +1,12 @@
+schema: null
+label: Daily Walking Cycling Totals
+description: ''
+sql: "SELECT \n    DATE_TRUNC('day', start_date) AS day,\n    customer_id,\n    source_name,\n\
+  \    activity_name,\n    unit,\n    SUM(value) AS daily_total\nFROM \n    fact_health_activity_base\
+  \ LEFT JOIN\n    dim_activity_type USING (activity_type_id)\nWHERE activity_name\
+  \ IN ('HKQuantityTypeIdentifierDistanceCycling', 'HKQuantityTypeIdentifierDistanceWalkingRunning')\n\
+  GROUP BY \n    DATE_TRUNC('day', start_date),\n    customer_id,\n    activity_name,\n\
+  \    source_name,\n    unit"
+uuid: a2053bd7-6f58-4f30-88d4-822a53cc5b94
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e
