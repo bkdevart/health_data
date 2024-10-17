@@ -1,0 +1,12 @@
+schema: null
+label: Interval Walking Cycling
+description: ''
+sql: "SELECT \n    start_date,\n    customer_id,\n    (string_to_array(source_name,\
+  \ ' '))\n      [array_length(string_to_array(source_name, ' '), 1)] AS source_name,\n\
+  \    activity_name,\n    unit,\n    value\nFROM \n    fact_health_activity_base\
+  \ LEFT JOIN\n    dim_activity_type USING (activity_type_id)\nWHERE\n    activity_name\
+  \ IN ('HKQuantityTypeIdentifierDistanceCycling', \n                      'HKQuantityTypeIdentifierDistanceWalkingRunning')\n\
+  ;"
+uuid: 3bc64bdc-7def-40fa-804d-b538e44e3051
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

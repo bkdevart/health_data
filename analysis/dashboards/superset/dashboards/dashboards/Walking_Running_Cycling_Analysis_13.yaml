@@ -72,7 +72,7 @@ position:
     id: CHART-X0Y0SdGnnE
     meta:
       chartId: 953
-      height: 50
+      height: 35
       sliceName: Daily Walking Cycling Total
       uuid: 9d37a71e-a682-4775-9286-6748186b73cc
       width: 12
@@ -82,20 +82,50 @@ position:
     - TAB-ywFVWm3ch
     - ROW-WF99LVCv9p
     type: CHART
-  CHART-yNymffZ920:
+  CHART-hSi0strcUQ:
     children: []
-    id: CHART-yNymffZ920
+    id: CHART-hSi0strcUQ
     meta:
       chartId: 874
       height: 50
       sliceName: Daily Distance Change Rate
       uuid: 70b902ac-c017-48d3-bb33-9281f6672e01
+      width: 9
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-KVN-MZfyE
+    - ROW-7FlzMJ6Bws
+    type: CHART
+  CHART-qnaZ8mueCj:
+    children: []
+    id: CHART-qnaZ8mueCj
+    meta:
+      chartId: 1145
+      height: 50
+      sliceName: Outliers
+      uuid: 31d49d06-224a-4026-b71c-fb4503335024
+      width: 3
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-KVN-MZfyE
+    - ROW-gYONaZGQDL
+    type: CHART
+  CHART-t9JE-sQJP_:
+    children: []
+    id: CHART-t9JE-sQJP_
+    meta:
+      chartId: 1144
+      height: 36
+      sliceName: Walking Cycling Intervals
+      uuid: 9ea8bf05-9f4e-4c92-9089-fd306170c55a
       width: 12
     parents:
     - ROOT_ID
     - TABS-nZFssoAX2x
     - TAB-ywFVWm3ch
-    - ROW-_DkHjOah9s
+    - ROW-WQUi2AS1O4
     type: CHART
   DASHBOARD_VERSION_KEY: v2
   GRID_ID:
@@ -126,6 +156,18 @@ position:
     - TABS-nZFssoAX2x
     - TAB-DYJWwEfgZC
     type: ROW
+  ROW-7FlzMJ6Bws:
+    children:
+    - CHART-qnaZ8mueCj
+    - CHART-hSi0strcUQ
+    id: ROW-7FlzMJ6Bws
+    meta:
+      background: BACKGROUND_TRANSPARENT
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-KVN-MZfyE
+    type: ROW
   ROW-WF99LVCv9p:
     children:
     - CHART-X0Y0SdGnnE
@@ -137,10 +179,10 @@ position:
     - TABS-nZFssoAX2x
     - TAB-ywFVWm3ch
     type: ROW
-  ROW-_DkHjOah9s:
+  ROW-WQUi2AS1O4:
     children:
-    - CHART-yNymffZ920
-    id: ROW-_DkHjOah9s
+    - CHART-t9JE-sQJP_
+    id: ROW-WQUi2AS1O4
     meta:
       background: BACKGROUND_TRANSPARENT
     parents:
@@ -168,7 +210,19 @@ position:
     meta:
       defaultText: Tab title
       placeholder: Tab title
-      text: Overall Summary
+      text: Summary
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    type: TAB
+  TAB-KVN-MZfyE:
+    children:
+    - ROW-7FlzMJ6Bws
+    id: TAB-KVN-MZfyE
+    meta:
+      defaultText: Tab title
+      placeholder: Tab title
+      text: Analytical Views
     parents:
     - ROOT_ID
     - TABS-nZFssoAX2x
@@ -176,12 +230,12 @@ position:
   TAB-ywFVWm3ch:
     children:
     - ROW-WF99LVCv9p
-    - ROW-_DkHjOah9s
+    - ROW-WQUi2AS1O4
     id: TAB-ywFVWm3ch
     meta:
       defaultText: Tab title
       placeholder: Tab title
-      text: Detailed Views
+      text: Daily Interval Views
     parents:
     - ROOT_ID
     - TABS-nZFssoAX2x
@@ -190,6 +244,7 @@ position:
     children:
     - TAB-DYJWwEfgZC
     - TAB-ywFVWm3ch
+    - TAB-KVN-MZfyE
     id: TABS-nZFssoAX2x
     meta: {}
     parents:
@@ -205,8 +260,8 @@ metadata:
         - 829
         - 833
         - 834
-        - 874
         - 953
+        - 1144
     '829':
       id: 829
       crossFilters:
@@ -215,8 +270,8 @@ metadata:
         - 368
         - 833
         - 834
-        - 874
         - 953
+        - 1144
     '833':
       id: 833
       crossFilters:
@@ -225,8 +280,8 @@ metadata:
         - 368
         - 829
         - 834
-        - 874
         - 953
+        - 1144
     '834':
       id: 834
       crossFilters:
@@ -235,8 +290,8 @@ metadata:
         - 368
         - 829
         - 833
-        - 874
         - 953
+        - 1144
     '874':
       id: 874
       crossFilters:
@@ -247,6 +302,7 @@ metadata:
         - 833
         - 834
         - 953
+        - 1144
     '953':
       id: 953
       crossFilters:
@@ -256,7 +312,28 @@ metadata:
         - 829
         - 833
         - 834
-        - 874
+        - 1144
+    '1144':
+      id: 1144
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 368
+        - 829
+        - 833
+        - 834
+        - 953
+    '1145':
+      id: 1145
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 368
+        - 829
+        - 833
+        - 834
+        - 953
+        - 1144
   global_chart_configuration:
     scope:
       rootPath:
@@ -268,15 +345,13 @@ metadata:
     - 829
     - 833
     - 834
-    - 874
     - 953
+    - 1144
   color_scheme: ''
   refresh_frequency: 0
   shared_label_colors:
-    8d, DistanceCycling: '#454E7C'
-    8d, DistanceWalkingRunning: '#3CCCCB'
-    4b, DistanceWalkingRunning: '#1FA8C9'
-    4b, DistanceCycling: '#5AC189'
+    "8d, Apple\_Watch, DistanceWalkingRunning": '#E04355'
+    "8d, Apple\_Watch, DistanceCycling": '#FF7F44'
   color_scheme_domain: []
   expanded_slices: {}
   label_colors: {}
@@ -324,9 +399,11 @@ metadata:
     - 834
     - 874
     - 953
+    - 1144
     tabsInScope:
     - TAB-DYJWwEfgZC
     - TAB-ywFVWm3ch
+    - TAB-KVN-MZfyE
   - id: NATIVE_FILTER-XOMxHMmq9
     controlValues:
       enableEmptyFilter: true
@@ -344,6 +421,7 @@ metadata:
       rootPath:
       - TAB-DYJWwEfgZC
       - TAB-ywFVWm3ch
+      - TAB-KVN-MZfyE
       excluded:
       - 834
     type: NATIVE_FILTER
@@ -352,10 +430,48 @@ metadata:
     - 368
     - 829
     - 833
-    - 834
     - 874
     - 953
     tabsInScope:
     - TAB-DYJWwEfgZC
     - TAB-ywFVWm3ch
+  - id: NATIVE_FILTER-uIPxAoiKF
+    controlValues:
+      enableEmptyFilter: false
+      defaultToFirstItem: false
+      multiSelect: true
+      searchAllOptions: false
+      inverseSelection: false
+    name: Activity
+    filterType: filter_select
+    targets:
+    - column:
+        name: activity_name
+      datasetUuid: 63ec8c8f-041f-4b79-b165-4567960581b5
+    defaultDataMask:
+      extraFormData: {}
+      filterState: {}
+      ownState: {}
+    cascadeParentIds: []
+    scope:
+      rootPath:
+      - TAB-ywFVWm3ch
+      - TAB-DYJWwEfgZC
+      - TAB-KVN-MZfyE
+      excluded:
+      - 834
+    type: NATIVE_FILTER
+    description: ''
+    chartsInScope:
+    - 368
+    - 829
+    - 833
+    - 874
+    - 953
+    - 1144
+    - 1145
+    tabsInScope:
+    - TAB-DYJWwEfgZC
+    - TAB-ywFVWm3ch
+    - TAB-KVN-MZfyE
 version: 1.0.0

@@ -1,4 +1,4 @@
-table_name: Daily Distance Change Rate
+table_name: Outliers
 main_dttm_col: day
 description: null
 default_endpoint: null
@@ -8,27 +8,23 @@ schema: null
 sql: "WITH daily_data AS (\n    SELECT \n        DATE_TRUNC('day', start_date) AS\
   \ day,\n        customer_id,\n        source_name,\n        activity_name,\n   \
   \     unit,\n        SUM(value) AS daily_total\n    FROM \n        fact_health_activity_base\n\
-  \    LEFT JOIN\n        dim_activity_type USING (activity_type_id)\n    WHERE activity_name\
-  \ IN ('HKQuantityTypeIdentifierDistanceCycling', 'HKQuantityTypeIdentifierDistanceWalkingRunning')\n\
-  \    GROUP BY \n        DATE_TRUNC('day', start_date),\n        customer_id,\n \
-  \       source_name,\n        activity_name,\n        unit\n),\ndays AS (\n    --\
-  \ generate all dates\n    SELECT \n    GENERATE_SERIES(\n        (SELECT MIN(start_date::date)\
-  \ FROM fact_health_activity_base),\n        (SELECT MAX(start_date::date) FROM fact_health_activity_base),\n\
-  \        '1 day'::interval\n    ) AS day\n)\nSELECT \n    d.day,\n    dd.customer_id,\n\
-  \    dd.source_name,\n    dd.activity_name,\n    dd.unit,\n    COALESCE(dd.daily_total,\
-  \ 0) AS daily_total,\n    LAG(COALESCE(dd.daily_total, 0)) OVER (PARTITION BY dd.customer_id,\
-  \ dd.source_name, dd.activity_name, dd.unit ORDER BY d.day, dd.customer_id, dd.source_name,\
-  \ dd.activity_name, dd.unit) AS previous_day_total,\n    (CASE\n        WHEN LAG(COALESCE(dd.daily_total,\
-  \ 0)) OVER (PARTITION BY dd.customer_id, dd.source_name, dd.activity_name, dd.unit\
-  \ ORDER BY d.day, dd.customer_id, dd.source_name, dd.activity_name, dd.unit) = 0\
-  \ THEN NULL\n        ELSE ((COALESCE(dd.daily_total, 0) - LAG(COALESCE(dd.daily_total,\
-  \ 0)) OVER (PARTITION BY dd.customer_id, dd.source_name, dd.activity_name, dd.unit\
-  \ ORDER BY d.day, dd.customer_id, dd.source_name, dd.activity_name, dd.unit)) \n\
-  \            / NULLIF(LAG(COALESCE(dd.daily_total, 0)) OVER (PARTITION BY dd.customer_id,\
-  \ dd.source_name, dd.activity_name, dd.unit ORDER BY d.day, dd.customer_id, dd.source_name,\
-  \ dd.activity_name, dd.unit), 0)) * 100\n     END) AS percentage_change\nFROM \n\
-  \    days d\nLEFT JOIN \n    daily_data dd\nON d.day = dd.day\nORDER BY \n    dd.customer_id,\
-  \ dd.source_name, dd.activity_name, dd.unit, d.day;"
+  \    LEFT JOIN\n        dim_activity_type USING (activity_type_id)\n    WHERE\n\
+  \        activity_name IN ('HKQuantityTypeIdentifierDistanceCycling', \n       \
+  \                   'HKQuantityTypeIdentifierDistanceWalkingRunning')\n    GROUP\
+  \ BY \n        DATE_TRUNC('day', start_date),\n        customer_id,\n        source_name,\n\
+  \        activity_name,\n        unit\n),\nstats AS (\n    SELECT \n        customer_id,\n\
+  \        source_name,\n        activity_name,\n        unit,\n        AVG(daily_total)\
+  \ AS avg_distance,\n        STDDEV(daily_total) AS stddev_distance\n    FROM \n\
+  \        daily_data\n    GROUP BY \n        customer_id,\n        source_name,\n\
+  \        activity_name,\n        unit\n)\nSELECT \n    d.day,\n    d.customer_id,\n\
+  \    d.source_name,\n    d.activity_name,\n    d.unit,\n    d.daily_total,\n   \
+  \ s.avg_distance,\n    s.stddev_distance,\n    CASE \n        WHEN d.daily_total\
+  \ > s.avg_distance + 2 * s.stddev_distance THEN 'High Outlier'\n        WHEN d.daily_total\
+  \ < s.avg_distance - 2 * s.stddev_distance THEN 'Low Outlier'\n        ELSE 'Normal'\n\
+  \    END AS outlier_status\nFROM \n    daily_data d\nJOIN \n    stats s \nON \n\
+  \    d.customer_id = s.customer_id \n    AND d.source_name = s.source_name\n   \
+  \ AND d.activity_name = s.activity_name \n    AND d.unit = s.unit\nORDER BY \n \
+  \   d.customer_id, d.source_name, d.activity_name, d.unit, d.day;"
 params: null
 template_params: null
 filter_select_enabled: true
@@ -36,7 +32,7 @@ fetch_values_predicate: null
 extra: null
 normalize_columns: false
 always_filter_main_dttm: false
-uuid: 23d75b8b-746f-41da-bb6c-9f43401021b4
+uuid: 72a3c5c3-4f4f-4f08-91c6-ea99bf0b2345
 metrics:
 - metric_name: count
   verbose_name: COUNT(*)
@@ -45,8 +41,7 @@ metrics:
   description: null
   d3format: null
   currency: null
-  extra:
-    warning_markdown: ''
+  extra: null
   warning_text: null
 columns:
 - column_name: day
@@ -60,8 +55,8 @@ columns:
   expression: null
   description: null
   python_date_format: null
-  extra: {}
-- column_name: previous_day_total
+  extra: null
+- column_name: avg_distance
   verbose_name: null
   is_dttm: false
   is_active: true
@@ -72,19 +67,7 @@ columns:
   expression: null
   description: null
   python_date_format: null
-  extra: {}
-- column_name: percentage_change
-  verbose_name: null
-  is_dttm: false
-  is_active: true
-  type: FLOAT
-  advanced_data_type: null
-  groupby: true
-  filterable: true
-  expression: null
-  description: null
-  python_date_format: null
-  extra: {}
+  extra: null
 - column_name: daily_total
   verbose_name: null
   is_dttm: false
@@ -96,7 +79,19 @@ columns:
   expression: null
   description: null
   python_date_format: null
-  extra: {}
+  extra: null
+- column_name: stddev_distance
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: FLOAT
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: null
 - column_name: activity_name
   verbose_name: null
   is_dttm: false
@@ -108,7 +103,7 @@ columns:
   expression: null
   description: null
   python_date_format: null
-  extra: {}
+  extra: null
 - column_name: source_name
   verbose_name: null
   is_dttm: false
@@ -120,7 +115,19 @@ columns:
   expression: null
   description: null
   python_date_format: null
-  extra: {}
+  extra: null
+- column_name: outlier_status
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: STRING
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: null
 - column_name: customer_id
   verbose_name: null
   is_dttm: false
@@ -132,7 +139,7 @@ columns:
   expression: null
   description: null
   python_date_format: null
-  extra: {}
+  extra: null
 - column_name: unit
   verbose_name: null
   is_dttm: false
@@ -144,6 +151,6 @@ columns:
   expression: null
   description: null
   python_date_format: null
-  extra: {}
+  extra: null
 version: 1.0.0
 database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

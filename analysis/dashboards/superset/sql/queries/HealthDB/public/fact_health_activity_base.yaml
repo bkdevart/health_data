@@ -1,0 +1,7 @@
+schema: public
+label: fact_health_activity_base
+description: ''
+sql: "SELECT * \nFROM fact_health_activity_base;"
+uuid: cfe15e21-cbd7-4a63-9dd8-802b089638fb
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

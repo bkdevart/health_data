@@ -1,0 +1,9 @@
+schema: public
+label: fact_health_activity_summary
+description: ''
+sql: "-- SELECT * \n-- FROM fact_health_activity_summary;\n\n-- issue-finding\nSELECT\
+  \ * \nFROM fact_health_activity_summary\nWHERE customer_id='924e0ac9-0996-4960-ac2c-448877c423cf'\n\
+  \  AND start_date='2022-11-13';"
+uuid: 35191dcf-2a6a-4a9c-aede-cba13e997e66
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e
