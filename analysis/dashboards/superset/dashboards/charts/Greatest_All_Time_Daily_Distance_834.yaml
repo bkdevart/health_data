@@ -1,0 +1,67 @@
+slice_name: Greatest All Time Daily Distance
+description: null
+certified_by: null
+certification_details: null
+viz_type: table
+params:
+  datasource: 35__table
+  viz_type: table
+  slice_id: 834
+  query_mode: raw
+  groupby: []
+  temporal_columns_lookup:
+    day: true
+  all_columns:
+  - day
+  - expressionType: SQL
+    label: activity_name
+    sqlExpression: REPLACE(activity_name, 'HKQuantityTypeIdentifier', '')
+  - expressionType: SQL
+    label: max_daily
+    sqlExpression: ROUND(max_daily)
+  percent_metrics: []
+  adhoc_filters:
+  - clause: WHERE
+    comparator: No filter
+    datasourceWarning: false
+    expressionType: SIMPLE
+    filterOptionName: filter_e120r7iptqp_ruvsprslp7b
+    isExtra: false
+    isNew: false
+    operator: TEMPORAL_RANGE
+    sqlExpression: null
+    subject: day
+  - clause: WHERE
+    comparator: null
+    datasourceWarning: false
+    expressionType: SQL
+    filterOptionName: filter_dm1xhoprdre_y6r7w71ywe
+    isExtra: false
+    isNew: false
+    operator: null
+    sqlExpression: source_name LIKE '%Watch%'
+    subject: null
+  order_by_cols:
+  - '["customer_id", true]'
+  - '["max_daily", false]'
+  row_limit: 1000
+  server_page_length: 10
+  order_desc: true
+  table_timestamp_format: '%Y-%m-%d'
+  show_cell_bars: true
+  color_pn: true
+  conditional_formatting: []
+  extra_form_data: {}
+  dashboards:
+  - 13
+query_context: '{"datasource":{"id":35,"type":"table"},"force":false,"queries":[{"filters":[{"col":"day","op":"TEMPORAL_RANGE","val":"No
+  filter"}],"extras":{"having":"","where":"(source_name LIKE ''%Watch%'')"},"applied_time_extras":{},"columns":["day",{"expressionType":"SQL","label":"activity_name","sqlExpression":"REPLACE(activity_name,
+  ''HKQuantityTypeIdentifier'', '''')"},{"expressionType":"SQL","label":"max_daily","sqlExpression":"ROUND(max_daily)"}],"orderby":[["customer_id",true],["max_daily",false]],"annotation_layers":[],"row_limit":1000,"series_limit":0,"order_desc":true,"url_params":{},"custom_params":{},"custom_form_data":{},"post_processing":[]}],"form_data":{"datasource":"35__table","viz_type":"table","slice_id":834,"query_mode":"raw","groupby":[],"temporal_columns_lookup":{"day":true},"all_columns":["day",{"expressionType":"SQL","label":"activity_name","sqlExpression":"REPLACE(activity_name,
+  ''HKQuantityTypeIdentifier'', '''')"},{"expressionType":"SQL","label":"max_daily","sqlExpression":"ROUND(max_daily)"}],"percent_metrics":[],"adhoc_filters":[{"clause":"WHERE","comparator":"No
+  filter","datasourceWarning":false,"expressionType":"SIMPLE","filterOptionName":"filter_e120r7iptqp_ruvsprslp7b","isExtra":false,"isNew":false,"operator":"TEMPORAL_RANGE","sqlExpression":null,"subject":"day"},{"clause":"WHERE","comparator":null,"datasourceWarning":false,"expressionType":"SQL","filterOptionName":"filter_dm1xhoprdre_y6r7w71ywe","isExtra":false,"isNew":false,"operator":null,"sqlExpression":"source_name
+  LIKE ''%Watch%''","subject":null}],"order_by_cols":["[\"customer_id\", true]","[\"max_daily\",
+  false]"],"row_limit":1000,"server_page_length":10,"order_desc":true,"table_timestamp_format":"%Y-%m-%d","show_cell_bars":true,"color_pn":true,"conditional_formatting":[],"extra_form_data":{},"dashboards":[13],"force":false,"result_format":"json","result_type":"full","include_time":false},"result_format":"json","result_type":"full"}'
+cache_timeout: null
+uuid: f5d6a066-6386-4b0f-aecf-71ac9807e8f1
+version: 1.0.0
+dataset_uuid: f8f5c3d3-16da-4cea-97b6-0deae846e269

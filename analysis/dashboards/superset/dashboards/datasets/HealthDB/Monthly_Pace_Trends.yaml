@@ -1,0 +1,114 @@
+table_name: Monthly Pace Trends
+main_dttm_col: month
+description: null
+default_endpoint: null
+offset: 0
+cache_timeout: null
+schema: null
+sql: "SELECT \n    DATE_TRUNC('month', start_date) AS month,\n    customer_id,\n \
+  \   source_name,\n    activity_name,\n    unit,\n    SUM(value) / NULLIF(SUM(duration_seconds),\
+  \ 0) * 3600 AS avg_pace_unit_hour\nFROM \n    fact_health_activity_base\nLEFT JOIN\
+  \ \n    dim_activity_type USING (activity_type_id)\nWHERE \n    activity_name IN\
+  \ ('HKQuantityTypeIdentifierDistanceCycling', 'HKQuantityTypeIdentifierDistanceWalkingRunning')\n\
+  GROUP BY \n    DATE_TRUNC('month', start_date),\n    customer_id,\n    source_name,\n\
+  \    activity_name,\n    unit\nORDER BY \n    month, customer_id, source_name, activity_name,\
+  \ unit;"
+params: null
+template_params: null
+filter_select_enabled: true
+fetch_values_predicate: null
+extra: null
+normalize_columns: false
+always_filter_main_dttm: false
+uuid: 0060a409-c817-4c0c-b9e9-3fd348a2cceb
+metrics:
+- metric_name: count
+  verbose_name: COUNT(*)
+  metric_type: count
+  expression: COUNT(*)
+  description: null
+  d3format: null
+  currency: null
+  extra:
+    warning_markdown: ''
+  warning_text: null
+columns:
+- column_name: month
+  verbose_name: null
+  is_dttm: true
+  is_active: true
+  type: DATETIME
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: avg_pace_unit_hour
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: FLOAT
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: activity_name
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: STRING
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: customer_id
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: STRING
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: unit
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: STRING
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: source_name
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: STRING
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra: {}
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

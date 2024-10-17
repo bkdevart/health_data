@@ -1,0 +1,160 @@
+slice_name: Selected Date Totals
+description: null
+certified_by: null
+certification_details: null
+viz_type: pivot_table_v2
+params:
+  datasource: 27__table
+  viz_type: pivot_table_v2
+  slice_id: 368
+  groupbyColumns: []
+  groupbyRows: []
+  temporal_columns_lookup:
+    start_date: true
+    date: true
+  metrics:
+  - aggregate: SUM
+    column:
+      advanced_data_type: null
+      certification_details: null
+      certified_by: null
+      column_name: cycling_miles
+      description: null
+      expression: ''
+      filterable: true
+      groupby: true
+      id: 808
+      is_certified: false
+      is_dttm: false
+      python_date_format: null
+      type: FLOAT
+      type_generic: 0
+      verbose_name: null
+      warning_markdown: null
+    datasourceWarning: false
+    expressionType: SIMPLE
+    hasCustomLabel: true
+    label: Cycling Miles
+    optionName: metric_mydcn41feef_x876hszhg08
+    sqlExpression: null
+  - aggregate: null
+    column: null
+    datasourceWarning: false
+    expressionType: SQL
+    hasCustomLabel: true
+    label: Cycling Hours
+    optionName: metric_bztjrhf0cnp_zhbuo61t2w
+    sqlExpression: SUM(cycling_seconds) / 3600
+  - aggregate: SUM
+    column:
+      advanced_data_type: null
+      certification_details: null
+      certified_by: null
+      column_name: walking_running_miles
+      description: null
+      expression: ''
+      filterable: true
+      groupby: true
+      id: 810
+      is_certified: false
+      is_dttm: false
+      python_date_format: null
+      type: FLOAT
+      type_generic: 0
+      verbose_name: null
+      warning_markdown: null
+    datasourceWarning: false
+    expressionType: SIMPLE
+    hasCustomLabel: true
+    label: Walking Running Miles
+    optionName: metric_oqxo6hd4ti7_d4m5txodxho
+    sqlExpression: null
+  - aggregate: null
+    column: null
+    datasourceWarning: false
+    expressionType: SQL
+    hasCustomLabel: true
+    label: Walking Running Hours
+    optionName: metric_8er1htu5eyw_hl227227ahw
+    sqlExpression: SUM(walking_running_seconds) / 3600
+  - aggregate: SUM
+    column:
+      advanced_data_type: null
+      certification_details: null
+      certified_by: null
+      column_name: steps_total
+      description: null
+      expression: ''
+      filterable: true
+      groupby: true
+      id: 812
+      is_certified: false
+      is_dttm: false
+      python_date_format: null
+      type: INTEGER
+      type_generic: 0
+      verbose_name: null
+      warning_markdown: null
+    datasourceWarning: false
+    expressionType: SIMPLE
+    hasCustomLabel: true
+    label: Total Steps
+    optionName: metric_muop7c635fq_x5byel50c6j
+    sqlExpression: null
+  metricsLayout: COLUMNS
+  adhoc_filters:
+  - expressionType: SQL
+    sqlExpression: source_name like '%Watch%'
+    clause: WHERE
+    subject: null
+    operator: null
+    comparator: null
+    isExtra: false
+    isNew: false
+    datasourceWarning: false
+    filterOptionName: filter_hhpnwbhkuch_99iodpkyavp
+  - expressionType: SIMPLE
+    subject: start_date
+    operator: TEMPORAL_RANGE
+    comparator: No filter
+    clause: WHERE
+    sqlExpression: null
+    isExtra: true
+    isNew: false
+    datasourceWarning: false
+    filterOptionName: filter_hq58t456fe_a7hb8u6o7sh
+  row_limit: 1000
+  order_desc: true
+  aggregateFunction: Sum
+  transposePivot: false
+  valueFormat: SMART_NUMBER
+  date_format: smart_date
+  rowOrder: key_a_to_z
+  colOrder: key_a_to_z
+  conditional_formatting: []
+  extra_form_data: {}
+  dashboards:
+  - 13
+query_context: '{"datasource":{"id":27,"type":"table"},"force":false,"queries":[{"filters":[{"col":"start_date","op":"TEMPORAL_RANGE","val":"No
+  filter"}],"extras":{"having":"","where":"(source_name like ''%Watch%'')"},"applied_time_extras":{},"columns":[],"metrics":[{"aggregate":"SUM","column":{"advanced_data_type":null,"certification_details":null,"certified_by":null,"column_name":"cycling_miles","description":null,"expression":"","filterable":true,"groupby":true,"id":808,"is_certified":false,"is_dttm":false,"python_date_format":null,"type":"FLOAT","type_generic":0,"verbose_name":null,"warning_markdown":null},"datasourceWarning":false,"expressionType":"SIMPLE","hasCustomLabel":true,"label":"Cycling
+  Miles","optionName":"metric_mydcn41feef_x876hszhg08","sqlExpression":null},{"aggregate":null,"column":null,"datasourceWarning":false,"expressionType":"SQL","hasCustomLabel":true,"label":"Cycling
+  Hours","optionName":"metric_bztjrhf0cnp_zhbuo61t2w","sqlExpression":"SUM(cycling_seconds)
+  / 3600"},{"aggregate":"SUM","column":{"advanced_data_type":null,"certification_details":null,"certified_by":null,"column_name":"walking_running_miles","description":null,"expression":"","filterable":true,"groupby":true,"id":810,"is_certified":false,"is_dttm":false,"python_date_format":null,"type":"FLOAT","type_generic":0,"verbose_name":null,"warning_markdown":null},"datasourceWarning":false,"expressionType":"SIMPLE","hasCustomLabel":true,"label":"Walking
+  Running Miles","optionName":"metric_oqxo6hd4ti7_d4m5txodxho","sqlExpression":null},{"aggregate":null,"column":null,"datasourceWarning":false,"expressionType":"SQL","hasCustomLabel":true,"label":"Walking
+  Running Hours","optionName":"metric_8er1htu5eyw_hl227227ahw","sqlExpression":"SUM(walking_running_seconds)
+  / 3600"},{"aggregate":"SUM","column":{"advanced_data_type":null,"certification_details":null,"certified_by":null,"column_name":"steps_total","description":null,"expression":"","filterable":true,"groupby":true,"id":812,"is_certified":false,"is_dttm":false,"python_date_format":null,"type":"INTEGER","type_generic":0,"verbose_name":null,"warning_markdown":null},"datasourceWarning":false,"expressionType":"SIMPLE","hasCustomLabel":true,"label":"Total
+  Steps","optionName":"metric_muop7c635fq_x5byel50c6j","sqlExpression":null}],"orderby":[[{"aggregate":"SUM","column":{"advanced_data_type":null,"certification_details":null,"certified_by":null,"column_name":"cycling_miles","description":null,"expression":"","filterable":true,"groupby":true,"id":808,"is_certified":false,"is_dttm":false,"python_date_format":null,"type":"FLOAT","type_generic":0,"verbose_name":null,"warning_markdown":null},"datasourceWarning":false,"expressionType":"SIMPLE","hasCustomLabel":true,"label":"Cycling
+  Miles","optionName":"metric_mydcn41feef_x876hszhg08","sqlExpression":null},false]],"annotation_layers":[],"row_limit":1000,"series_limit":0,"order_desc":true,"url_params":{},"custom_params":{},"custom_form_data":{}}],"form_data":{"datasource":"27__table","viz_type":"pivot_table_v2","slice_id":368,"groupbyColumns":[],"groupbyRows":[],"temporal_columns_lookup":{"start_date":true,"date":true},"metrics":[{"aggregate":"SUM","column":{"advanced_data_type":null,"certification_details":null,"certified_by":null,"column_name":"cycling_miles","description":null,"expression":"","filterable":true,"groupby":true,"id":808,"is_certified":false,"is_dttm":false,"python_date_format":null,"type":"FLOAT","type_generic":0,"verbose_name":null,"warning_markdown":null},"datasourceWarning":false,"expressionType":"SIMPLE","hasCustomLabel":true,"label":"Cycling
+  Miles","optionName":"metric_mydcn41feef_x876hszhg08","sqlExpression":null},{"aggregate":null,"column":null,"datasourceWarning":false,"expressionType":"SQL","hasCustomLabel":true,"label":"Cycling
+  Hours","optionName":"metric_bztjrhf0cnp_zhbuo61t2w","sqlExpression":"SUM(cycling_seconds)
+  / 3600"},{"aggregate":"SUM","column":{"advanced_data_type":null,"certification_details":null,"certified_by":null,"column_name":"walking_running_miles","description":null,"expression":"","filterable":true,"groupby":true,"id":810,"is_certified":false,"is_dttm":false,"python_date_format":null,"type":"FLOAT","type_generic":0,"verbose_name":null,"warning_markdown":null},"datasourceWarning":false,"expressionType":"SIMPLE","hasCustomLabel":true,"label":"Walking
+  Running Miles","optionName":"metric_oqxo6hd4ti7_d4m5txodxho","sqlExpression":null},{"aggregate":null,"column":null,"datasourceWarning":false,"expressionType":"SQL","hasCustomLabel":true,"label":"Walking
+  Running Hours","optionName":"metric_8er1htu5eyw_hl227227ahw","sqlExpression":"SUM(walking_running_seconds)
+  / 3600"},{"aggregate":"SUM","column":{"advanced_data_type":null,"certification_details":null,"certified_by":null,"column_name":"steps_total","description":null,"expression":"","filterable":true,"groupby":true,"id":812,"is_certified":false,"is_dttm":false,"python_date_format":null,"type":"INTEGER","type_generic":0,"verbose_name":null,"warning_markdown":null},"datasourceWarning":false,"expressionType":"SIMPLE","hasCustomLabel":true,"label":"Total
+  Steps","optionName":"metric_muop7c635fq_x5byel50c6j","sqlExpression":null}],"metricsLayout":"COLUMNS","adhoc_filters":[{"expressionType":"SQL","sqlExpression":"source_name
+  like ''%Watch%''","clause":"WHERE","subject":null,"operator":null,"comparator":null,"isExtra":false,"isNew":false,"datasourceWarning":false,"filterOptionName":"filter_hhpnwbhkuch_99iodpkyavp"},{"expressionType":"SIMPLE","subject":"start_date","operator":"TEMPORAL_RANGE","comparator":"No
+  filter","clause":"WHERE","sqlExpression":null,"isExtra":true,"isNew":false,"datasourceWarning":false,"filterOptionName":"filter_hq58t456fe_a7hb8u6o7sh"}],"row_limit":1000,"order_desc":true,"aggregateFunction":"Sum","transposePivot":false,"valueFormat":"SMART_NUMBER","date_format":"smart_date","rowOrder":"key_a_to_z","colOrder":"key_a_to_z","conditional_formatting":[],"extra_form_data":{},"dashboards":[13],"force":false,"result_format":"json","result_type":"full"},"result_format":"json","result_type":"full"}'
+cache_timeout: null
+uuid: 6458a02b-4471-4482-9ad4-9edcd80018ac
+version: 1.0.0
+dataset_uuid: ee48971a-bbb7-484b-b582-6f0abf11801a

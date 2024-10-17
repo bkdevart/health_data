@@ -1,0 +1,361 @@
+dashboard_title: Walking Running Cycling Analysis
+description: null
+css: ''
+slug: null
+certified_by: ''
+certification_details: ''
+published: false
+uuid: 587f05a7-160a-4f00-bed6-59078b9414bb
+position:
+  CHART-CdHQpBTlDH:
+    children: []
+    id: CHART-CdHQpBTlDH
+    meta:
+      chartId: 833
+      height: 51
+      sliceName: Weekday Cycling Walking Comparison
+      uuid: dadf346a-faca-417c-b8bd-051e80585386
+      width: 5
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-DYJWwEfgZC
+    - ROW-cDBaKuRCc
+    type: CHART
+  CHART-DdnFWzdREh:
+    children: []
+    id: CHART-DdnFWzdREh
+    meta:
+      chartId: 834
+      height: 23
+      sliceName: Greatest All Time Daily Distance
+      uuid: f5d6a066-6386-4b0f-aecf-71ac9807e8f1
+      width: 5
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-DYJWwEfgZC
+    - ROW-0TZG4CrqX
+    type: CHART
+  CHART-HGHhLL-wU0:
+    children: []
+    id: CHART-HGHhLL-wU0
+    meta:
+      chartId: 829
+      height: 51
+      sliceName: Monthly Avg Speed (MPH)
+      uuid: 9a2550fc-d279-4cc1-8e53-8181c01bbd67
+      width: 7
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-DYJWwEfgZC
+    - ROW-cDBaKuRCc
+    type: CHART
+  CHART-OoCWuEUiX2:
+    children: []
+    id: CHART-OoCWuEUiX2
+    meta:
+      chartId: 368
+      height: 23
+      sliceName: Selected Date Totals
+      uuid: 6458a02b-4471-4482-9ad4-9edcd80018ac
+      width: 7
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-DYJWwEfgZC
+    - ROW-0TZG4CrqX
+    type: CHART
+  CHART-X0Y0SdGnnE:
+    children: []
+    id: CHART-X0Y0SdGnnE
+    meta:
+      chartId: 953
+      height: 50
+      sliceName: Daily Walking Cycling Total
+      uuid: 9d37a71e-a682-4775-9286-6748186b73cc
+      width: 12
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-ywFVWm3ch
+    - ROW-WF99LVCv9p
+    type: CHART
+  CHART-yNymffZ920:
+    children: []
+    id: CHART-yNymffZ920
+    meta:
+      chartId: 874
+      height: 50
+      sliceName: Daily Distance Change Rate
+      uuid: 70b902ac-c017-48d3-bb33-9281f6672e01
+      width: 12
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-ywFVWm3ch
+    - ROW-_DkHjOah9s
+    type: CHART
+  DASHBOARD_VERSION_KEY: v2
+  GRID_ID:
+    children: []
+    id: GRID_ID
+    parents:
+    - ROOT_ID
+    type: GRID
+  HEADER_ID:
+    id: HEADER_ID
+    meta:
+      text: Walking Running Cycling Analysis
+    type: HEADER
+  ROOT_ID:
+    children:
+    - TABS-nZFssoAX2x
+    id: ROOT_ID
+    type: ROOT
+  ROW-0TZG4CrqX:
+    children:
+    - CHART-DdnFWzdREh
+    - CHART-OoCWuEUiX2
+    id: ROW-0TZG4CrqX
+    meta:
+      background: BACKGROUND_TRANSPARENT
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-DYJWwEfgZC
+    type: ROW
+  ROW-WF99LVCv9p:
+    children:
+    - CHART-X0Y0SdGnnE
+    id: ROW-WF99LVCv9p
+    meta:
+      background: BACKGROUND_TRANSPARENT
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-ywFVWm3ch
+    type: ROW
+  ROW-_DkHjOah9s:
+    children:
+    - CHART-yNymffZ920
+    id: ROW-_DkHjOah9s
+    meta:
+      background: BACKGROUND_TRANSPARENT
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-ywFVWm3ch
+    type: ROW
+  ROW-cDBaKuRCc:
+    children:
+    - CHART-CdHQpBTlDH
+    - CHART-HGHhLL-wU0
+    id: ROW-cDBaKuRCc
+    meta:
+      background: BACKGROUND_TRANSPARENT
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    - TAB-DYJWwEfgZC
+    type: ROW
+  TAB-DYJWwEfgZC:
+    children:
+    - ROW-0TZG4CrqX
+    - ROW-cDBaKuRCc
+    id: TAB-DYJWwEfgZC
+    meta:
+      defaultText: Tab title
+      placeholder: Tab title
+      text: Overall Summary
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    type: TAB
+  TAB-ywFVWm3ch:
+    children:
+    - ROW-WF99LVCv9p
+    - ROW-_DkHjOah9s
+    id: TAB-ywFVWm3ch
+    meta:
+      defaultText: Tab title
+      placeholder: Tab title
+      text: Detailed Views
+    parents:
+    - ROOT_ID
+    - TABS-nZFssoAX2x
+    type: TAB
+  TABS-nZFssoAX2x:
+    children:
+    - TAB-DYJWwEfgZC
+    - TAB-ywFVWm3ch
+    id: TABS-nZFssoAX2x
+    meta: {}
+    parents:
+    - ROOT_ID
+    type: TABS
+metadata:
+  chart_configuration:
+    '368':
+      id: 368
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 829
+        - 833
+        - 834
+        - 874
+        - 953
+    '829':
+      id: 829
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 368
+        - 833
+        - 834
+        - 874
+        - 953
+    '833':
+      id: 833
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 368
+        - 829
+        - 834
+        - 874
+        - 953
+    '834':
+      id: 834
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 368
+        - 829
+        - 833
+        - 874
+        - 953
+    '874':
+      id: 874
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 368
+        - 829
+        - 833
+        - 834
+        - 953
+    '953':
+      id: 953
+      crossFilters:
+        scope: global
+        chartsInScope:
+        - 368
+        - 829
+        - 833
+        - 834
+        - 874
+  global_chart_configuration:
+    scope:
+      rootPath:
+      - TAB-DYJWwEfgZC
+      - TAB-ywFVWm3ch
+      excluded: []
+    chartsInScope:
+    - 368
+    - 829
+    - 833
+    - 834
+    - 874
+    - 953
+  color_scheme: ''
+  refresh_frequency: 0
+  shared_label_colors:
+    8d, DistanceCycling: '#454E7C'
+    8d, DistanceWalkingRunning: '#3CCCCB'
+    4b, DistanceWalkingRunning: '#1FA8C9'
+    4b, DistanceCycling: '#5AC189'
+  color_scheme_domain: []
+  expanded_slices: {}
+  label_colors: {}
+  timed_refresh_immune_slices: []
+  cross_filters_enabled: true
+  default_filters: '{}'
+  native_filter_configuration:
+  - id: NATIVE_FILTER-9CBr0Nz1X
+    controlValues:
+      enableEmptyFilter: true
+      defaultToFirstItem: false
+      multiSelect: false
+      searchAllOptions: false
+      inverseSelection: false
+    name: customer_id
+    filterType: filter_select
+    targets:
+    - column:
+        name: customer_id
+      datasetUuid: ee48971a-bbb7-484b-b582-6f0abf11801a
+    defaultDataMask:
+      extraFormData:
+        filters:
+        - col: customer_id
+          op: IN
+          val:
+          - 8daad25d-a852-4624-b22f-e99b86929a84
+      filterState:
+        validateMessage: false
+        validateStatus: false
+        label: 8daad25d-a852-4624-b22f-e99b86929a84
+        value:
+        - 8daad25d-a852-4624-b22f-e99b86929a84
+    cascadeParentIds: []
+    scope:
+      rootPath:
+      - ROOT_ID
+      excluded: []
+    type: NATIVE_FILTER
+    description: ''
+    chartsInScope:
+    - 368
+    - 829
+    - 833
+    - 834
+    - 874
+    - 953
+    tabsInScope:
+    - TAB-DYJWwEfgZC
+    - TAB-ywFVWm3ch
+  - id: NATIVE_FILTER-XOMxHMmq9
+    controlValues:
+      enableEmptyFilter: true
+    name: Date Range
+    filterType: filter_time
+    targets:
+    - {}
+    defaultDataMask:
+      extraFormData:
+        time_range: Last quarter
+      filterState:
+        value: Last quarter
+    cascadeParentIds: []
+    scope:
+      rootPath:
+      - TAB-DYJWwEfgZC
+      - TAB-ywFVWm3ch
+      excluded:
+      - 834
+    type: NATIVE_FILTER
+    description: ''
+    chartsInScope:
+    - 368
+    - 829
+    - 833
+    - 834
+    - 874
+    - 953
+    tabsInScope:
+    - TAB-DYJWwEfgZC
+    - TAB-ywFVWm3ch
+version: 1.0.0
