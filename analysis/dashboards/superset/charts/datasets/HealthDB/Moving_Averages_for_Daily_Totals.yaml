@@ -1,0 +1,104 @@
+table_name: Moving Averages for Daily Totals
+main_dttm_col: day
+description: null
+default_endpoint: null
+offset: 0
+cache_timeout: null
+schema: null
+sql: "WITH daily_data AS (\n  SELECT \n    DATE_TRUNC('day', start_date) AS day,\n\
+  \    customer_id,\n    activity_name,\n    unit,\n    SUM(value) AS daily_total\n\
+  \  FROM \n    fact_health_activity_base\n  LEFT JOIN\n    dim_activity_type USING\
+  \ (activity_type_id)\n  WHERE activity_name IN ('HKQuantityTypeIdentifierDistanceCycling',\
+  \ 'HKQuantityTypeIdentifierDistanceWalkingRunning')\n  GROUP BY \n    DATE_TRUNC('day',\
+  \ start_date),\n    customer_id,\n    source_name,\n    activity_name,\n    unit\n\
+  )\nSELECT \n  day,\n  customer_id,\n  activity_name,\n  unit,\n  AVG(daily_total)\
+  \ OVER (\n      PARTITION BY customer_id, activity_name, unit \n      ORDER BY day\
+  \ \n      ROWS BETWEEN 6 PRECEDING AND CURRENT ROW\n  ) AS moving_avg_daily_total\n\
+  FROM \n  daily_data\nORDER BY \n  customer_id, activity_name, unit, day;\n"
+params: null
+template_params: null
+filter_select_enabled: true
+fetch_values_predicate: null
+extra: null
+normalize_columns: false
+always_filter_main_dttm: false
+uuid: 71dcdcf7-7ac5-4392-a147-6632758055ef
+metrics:
+- metric_name: count
+  verbose_name: COUNT(*)
+  metric_type: count
+  expression: COUNT(*)
+  description: null
+  d3format: null
+  currency: null
+  extra:
+    warning_markdown: ''
+  warning_text: null
+columns:
+- column_name: day
+  verbose_name: null
+  is_dttm: true
+  is_active: true
+  type: DATETIME
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: moving_avg_daily_total
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: FLOAT
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: activity_name
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: STRING
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: customer_id
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: STRING
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: unit
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: STRING
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

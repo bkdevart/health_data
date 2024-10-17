@@ -1,0 +1,162 @@
+table_name: Daily Distance Change Rate
+main_dttm_col: day
+description: null
+default_endpoint: null
+offset: 0
+cache_timeout: null
+schema: null
+sql: "WITH daily_data AS (\n    SELECT \n        DATE_TRUNC('day', start_date) AS\
+  \ day,\n        customer_id,\n        source_name,\n        activity_name,\n   \
+  \     unit,\n        SUM(value) AS daily_total\n    FROM \n        fact_health_activity_base\n\
+  \    LEFT JOIN\n        dim_activity_type USING (activity_type_id)\n    -- modified\
+  \ for testing\n    WHERE activity_name IN ('HKQuantityTypeIdentifierDistanceCycling',\
+  \ 'HKQuantityTypeIdentifierDistanceWalkingRunning')\n      -- AND customer_id =\
+  \ '8daad25d-a852-4624-b22f-e99b86929a84'\n      -- AND (source_name LIKE '%Watch%'\
+  \ OR source_name LIKE '%Brandon%')\n    GROUP BY \n        DATE_TRUNC('day', start_date),\n\
+  \        customer_id,\n        source_name,\n        activity_name,\n        unit\n\
+  ),\ndays AS (\n    -- modify this to generate more dates\n    SELECT \n    GENERATE_SERIES(\n\
+  \        (SELECT MIN(start_date::date) FROM fact_health_activity_base),\n      \
+  \  (SELECT MAX(start_date::date) FROM fact_health_activity_base),\n        '1 day'::interval\n\
+  \    ) AS day\n)\nSELECT \n    d.day,\n    dd.customer_id,\n    dd.source_name,\n\
+  \    REPLACE(dd.activity_name, 'HKQuantityTypeIdentifier', '') as activity_name,\n\
+  \    dd.unit,\n    COALESCE(dd.daily_total, 0) AS daily_total,\n    LAG(COALESCE(dd.daily_total,\
+  \ 0)) OVER (PARTITION BY dd.customer_id, dd.source_name, dd.activity_name, dd.unit\
+  \ ORDER BY d.day, dd.customer_id, dd.source_name, dd.activity_name, dd.unit) AS\
+  \ previous_day_total,\n    (CASE\n        WHEN LAG(COALESCE(dd.daily_total, 0))\
+  \ OVER (PARTITION BY dd.customer_id, dd.source_name, dd.activity_name, dd.unit ORDER\
+  \ BY d.day, dd.customer_id, dd.source_name, dd.activity_name, dd.unit) = 0 THEN\
+  \ NULL\n        ELSE ((COALESCE(dd.daily_total, 0) - LAG(COALESCE(dd.daily_total,\
+  \ 0)) OVER (PARTITION BY dd.customer_id, dd.source_name, dd.activity_name, dd.unit\
+  \ ORDER BY d.day, dd.customer_id, dd.source_name, dd.activity_name, dd.unit)) \n\
+  \            / NULLIF(LAG(COALESCE(dd.daily_total, 0)) OVER (PARTITION BY dd.customer_id,\
+  \ dd.source_name, dd.activity_name, dd.unit ORDER BY d.day, dd.customer_id, dd.source_name,\
+  \ dd.activity_name, dd.unit), 0)) * 100\n     END) AS percentage_change\nFROM \n\
+  \    days d\nLEFT JOIN \n    daily_data dd\nON d.day = dd.day\n-- modify for testing\n\
+  -- WHERE d.day BETWEEN '2024-06-27' AND '2024-07-30'\nORDER BY \n    dd.customer_id,\
+  \ dd.source_name, dd.activity_name, dd.unit, d.day;"
+params: null
+template_params: null
+filter_select_enabled: true
+fetch_values_predicate: null
+extra: null
+normalize_columns: false
+always_filter_main_dttm: false
+uuid: 23d75b8b-746f-41da-bb6c-9f43401021b4
+metrics:
+- metric_name: count
+  verbose_name: COUNT(*)
+  metric_type: count
+  expression: COUNT(*)
+  description: null
+  d3format: null
+  currency: null
+  extra:
+    warning_markdown: ''
+  warning_text: null
+columns:
+- column_name: day
+  verbose_name: null
+  is_dttm: true
+  is_active: true
+  type: DATETIME
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: previous_day_total
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: FLOAT
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: percentage_change
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: FLOAT
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: daily_total
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: FLOAT
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: activity_name
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: STRING
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: source_name
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: STRING
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: customer_id
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: STRING
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+- column_name: unit
+  verbose_name: null
+  is_dttm: false
+  is_active: true
+  type: STRING
+  advanced_data_type: null
+  groupby: true
+  filterable: true
+  expression: null
+  description: null
+  python_date_format: null
+  extra:
+    warning_markdown: null
+version: 1.0.0
+database_uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e

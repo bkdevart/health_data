@@ -1,0 +1,13 @@
+database_name: HealthDB
+sqlalchemy_uri: postgresql+psycopg2://health_db:XXXXXXXXXX@postgres_health:5432/health_db
+cache_timeout: null
+expose_in_sqllab: true
+allow_run_async: false
+allow_ctas: false
+allow_cvas: false
+allow_dml: false
+allow_file_upload: false
+extra:
+  allows_virtual_table_explore: true
+uuid: a39cb673-13bc-43c6-ba5b-cd016072c76e
+version: 1.0.0
